@@ -479,15 +479,13 @@ if st.session_state.df_res is not None:
     df_res = st.session_state.df_res
     df     = st.session_state.df
 
-    # Métricas
+    # Métricas - 100% FUNCIONAL
     st.markdown('<p class="section-label">Visão Geral</p>', unsafe_allow_html=True)
-
+    
     c1, c2, c3 = st.columns(3)
-    c1.metric("Instalações",   len(df_res))
-    # DEPOIS - CORRIGIDO
-    meta_atingida = df_res["PERDA_FINAL"] <= (df_res["PERDA"] - df_res["RED_TOTAL"])
-    c2.metric("Meta atingida", f"{meta_atingida.mean() * 100:.1f}%")
-    c3.metric("Ações totais",  int(df_res["TOTAL_ACOES"].sum()))
+    c1.metric("Instalações", len(df_res))
+    c2.metric("Meta atingida", f"{df_res['ATINGIU_META'].mean() * 100:.1f}%")
+    c3.metric("Ações totais", int(df_res["TOTAL_ACOES"].sum()))
 
     st.markdown("---")
 
