@@ -271,7 +271,7 @@ st.markdown("""
 # =========================
 st.markdown('<p class="section-label">Modo de entrada</p>', unsafe_allow_html=True)
 modo = st.radio("Modo de entrada", ["Upload de Excel", "Manual"],
-                horizontal=True, label_visibility="collapsed")
+                horizontal=True)
 
 # =========================
 # UPLOAD
