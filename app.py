@@ -525,7 +525,7 @@ if st.session_state.df_res is not None:
         - base["REVERSA"] - base["CONSUMO"]
         - base["ILUMINACAO_PUBLICA"]
     )
-    meta = perda - df_res[df_res["INSTALACAO"] == inst_sel]["RED_TOTAL"].iloc[0]
+    meta = perda - df_res[df_res["INSTALACAO"] == inst_sel]["RED_NECESSÁRIA"].iloc[0]
 
     col1, col2 = st.columns(2)
 
