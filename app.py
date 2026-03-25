@@ -55,7 +55,8 @@ if file:
         faixa = math.ceil(perda_pct * 100)
 
         meta_pct = curva.get(faixa, 0)
-        reducao = meta_pct / 100 * total
+        #reducao = meta_pct / 100 * total
+        reducao = perda_inicial * (meta_pct/100)
 
         # =========================
         # OTIMIZADOR
