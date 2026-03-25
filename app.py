@@ -9,173 +9,185 @@ st.set_page_config(
 )
 
 # =========================
-# CSS CORRIGIDO - CONTRASTE MÁXIMO
+# PALETA PERFEITA - Tailwind Style
 # =========================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* FONTES GLOBAIS */
+/* BASE */
+:root {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #f1f5f9;
+    --bg-card: #ffffff;
+    --border: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --success: #10b981;
+    --danger: #ef4444;
+}
+
 * {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Inter', sans-serif;
 }
 
-/* BACKGROUND */
 .stApp {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
-/* CONTEINER */
 .block-container {
-    padding: 2rem 1.5rem 4rem !important;
-    max-width: 1000px !important;
-    color: #1e293b !important; /* CONTRASTE FORÇADO */
+    padding: 2rem 1.5rem 4rem;
+    max-width: 1100px;
+    color: var(--text-primary);
 }
 
-/* HEADER */
+/* HEADER MODERNO */
 .app-header {
     background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    border-radius: 20px;
-    padding: 2rem 2rem 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    border-radius: 24px;
+    padding: 2.5rem 2rem 2rem;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .app-header h1 {
-    color: #ffffff !important;
-    font-size: clamp(1.5rem, 5vw, 2rem);
+    color: #ffffff;
+    font-size: clamp(1.75rem, 5vw, 2.25rem);
     font-weight: 700;
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.025em;
 }
 
 .app-header p {
-    color: #cbd5e1 !important;
-    font-size: 0.95rem;
+    color: #cbd5e1;
+    font-size: 1rem;
+    font-weight: 400;
     margin: 0;
 }
 
-/* SEÇÃO LABELS */
+/* SEÇÕES */
 .section-label {
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
+    font-size: 0.75rem;
+    font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #475569 !important; /* CINZA ESCURO VISÍVEL */
-    margin: 2.5rem 0 1rem 0;
+    color: var(--text-muted);
+    margin: 3rem 0 1.25rem 0;
 }
 
-/* MÉTRICAS */
+/* MÉTRICAS ELEGANTES */
 [data-testid="metric-container"] {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 16px !important;
-    padding: 1.5rem !important;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-testid="metric-container"]:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 [data-testid="metric-container"] > div:first-child {
-    color: #64748b !important; /* LABEL DAS MÉTRICAS */
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 [data-testid="stMetricValue"] {
-    color: #1e293b !important; /* VALOR DAS MÉTRICAS */
-    font-weight: 700 !important;
-    font-size: clamp(1.4rem, 4.5vw, 1.8rem) !important;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: clamp(1.5rem, 5vw, 2rem);
 }
 
-/* INPUTS */
+/* INPUTS MODERNOS */
 [data-testid="stTextInput"] input,
-[data-testid="stNumberInput"] input,
-input {
-    border-radius: 12px !important;
-    border: 2px solid #e2e8f0 !important;
-    background: #ffffff !important;
-    color: #1e293b !important; /* TEXTO DOS INPUTS */
-    font-size: 0.95rem !important;
-    padding: 0.875rem 1rem !important;
+[data-testid="stNumberInput"] input {
+    border-radius: 16px;
+    border: 2px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: 1rem 1.25rem;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
 }
 
-[data-testid="stTextInput"] label,
-[data-testid="stNumberInput"] label,
-[data-testid="stSelectbox"] label,
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    outline: none;
+}
+
 label {
-    color: #374151 !important; /* LABELS DOS INPUTS */
-    font-size: 0.8rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.025em !important;
-    text-transform: uppercase !important;
-}
-
-/* SELECTBOX */
-[data-testid="stSelectbox"] > div > div {
-    border-radius: 12px !important;
-    border: 2px solid #e2e8f0 !important;
-    background: #ffffff !important;
-    color: #1e293b !important;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
 }
 
 /* BOTÕES */
 .stButton > button {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
-    color: #ffffff !important;
-    border-radius: 12px !important;
-    font-weight: 600 !important;
-    padding: 0.875rem 1.5rem !important;
-    border: none !important;
+    background: linear-gradient(135deg, var(--accent), #1d4ed8);
+    color: white;
+    border-radius: 16px;
+    font-weight: 600;
+    padding: 1rem 1.75rem;
+    border: none;
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+    transition: all 0.3s ease;
+}
+
+.stButton > button:hover {
+    background: linear-gradient(135deg, var(--accent-hover), #1e40af);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 20px -5px rgba(59, 130, 246, 0.4);
 }
 
 .stDownloadButton > button {
-    background: #f8fafc !important;
-    color: #1e293b !important;
-    border: 2px solid #e2e8f0 !important;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    font-weight: 600;
 }
 
 /* DATAFRAME */
 [data-testid="stDataFrame"] {
-    border-radius: 16px !important;
-    border: 1px solid #e2e8f0 !important;
-    font-size: 0.88rem !important;
-    color: #1e293b !important;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
-/* INFO BOX */
-.info-box {
-    background: #f8fafc !important;
-    color: #475569 !important;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-}
-
-.info-box strong {
-    color: #1e293b !important;
-}
-
-/* RESULTADOS */
+/* ALERTAS E RESULTADOS */
 .sim-result-ok {
-    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-    border: 2px solid #22c55e;
-    color: #166534 !important;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border: 2px solid var(--success);
+    color: #065f46;
+    border-radius: 16px;
 }
 
 .sim-result-fail {
-    background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
-    border: 2px solid #ef4444;
-    color: #dc2626 !important;
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    border: 2px solid var(--danger);
+    color: #991b1b;
+    border-radius: 16px;
 }
 
-/* TEXTO GERAL - FORÇA CONTRASTE */
-p, span, div, td, th {
-    color: #1e293b !important;
-}
-
+/* MOBILE */
 @media (max-width: 768px) {
-    .block-container {
-        padding: 1.5rem 1rem 3rem !important;
-    }
+    .block-container { padding: 1.5rem 1rem 3rem; }
+    .app-header { padding: 2rem 1.5rem 1.5rem; margin-bottom: 2rem; }
 }
 </style>
 """, unsafe_allow_html=True)
