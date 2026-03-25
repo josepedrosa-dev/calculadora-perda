@@ -9,18 +9,18 @@ st.set_page_config(
 )
 
 # =========================
-# CSS GLOBAL — mobile-first
+# CSS GLOBAL — Paleta Clean & Neutra
 # =========================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .stApp {
-    background: #F5F4F0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 header[data-testid="stHeader"] {
@@ -28,244 +28,266 @@ header[data-testid="stHeader"] {
 }
 
 .block-container {
-    padding: 1.5rem 1rem 3rem 1rem !important;
-    max-width: 860px !important;
+    padding: 2rem 1.5rem 4rem !important;
+    max-width: 1000px !important;
 }
 
+/* Typography */
 h1, h2, h3 {
-    font-family: 'DM Sans', sans-serif;
-    letter-spacing: -0.03em;
-    color: #1A1A1A;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #1e293b;
+    letter-spacing: -0.025em;
 }
 
 /* Header */
 .app-header {
-    background: #1A1A1A;
-    border-radius: 16px;
-    padding: 1.5rem 1.5rem 1.25rem;
-    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-radius: 20px;
+    padding: 2rem 2rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0,0, 0.1), 0 10px 10px -5px rgba(0, 0,0, 0.04);
 }
+
 .app-header h1 {
-    color: #FFFFFF;
-    font-size: clamp(1.3rem, 5vw, 1.8rem);
+    color: #ffffff;
+    font-size: clamp(1.5rem, 5vw, 2rem);
     font-weight: 700;
-    margin: 0 0 0.25rem 0;
+    margin: 0 0 0.5rem 0;
     letter-spacing: -0.03em;
 }
+
 .app-header p {
-    color: #888;
-    font-size: 0.82rem;
+    color: #cbd5e1;
+    font-size: 0.95rem;
     margin: 0;
     font-weight: 400;
 }
 
 /* Section labels */
 .section-label {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #999;
-    margin: 1.4rem 0 0.5rem 0;
+    color: #64748b;
+    margin: 2.5rem 0 1rem 0;
 }
 
-/* Metrics */
+/* Metrics - Clean cards */
 [data-testid="metric-container"] {
-    background: #FFFFFF;
-    border: 1px solid #E8E8E4;
-    border-radius: 12px;
-    padding: 1rem !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.5rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0,0, 0.1), 0 2px 4px -1px rgba(0, 0,0, 0.06);
+    transition: all 0.2s ease;
 }
+
+[data-testid="metric-container"]:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0,0, 0.1), 0 4px 6px -2px rgba(0, 0,0, 0.05);
+    transform: translateY(-2px);
+}
+
 [data-testid="metric-container"] > div:first-child {
-    font-size: 0.68rem !important;
+    font-size: 0.75rem !important;
     font-weight: 600 !important;
     letter-spacing: 0.08em !important;
     text-transform: uppercase !important;
-    color: #999 !important;
-}
-[data-testid="metric-container"] [data-testid="stMetricValue"] {
-    font-family: 'DM Mono', monospace !important;
-    font-size: clamp(1.2rem, 4vw, 1.6rem) !important;
-    font-weight: 500 !important;
-    color: #1A1A1A !important;
+    color: #64748b !important;
+    margin-bottom: 0.25rem;
 }
 
-/* Inputs */
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    font-family: 'Inter', sans-serif !important;
+    font-size: clamp(1.4rem, 4.5vw, 1.8rem) !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+}
+
+/* Inputs - Minimal */
 [data-testid="stTextInput"] input,
 [data-testid="stNumberInput"] input {
-    border-radius: 8px !important;
-    border: 1.5px solid #E0E0DC !important;
-    background: #FFFFFF !important;
-    font-family: 'DM Sans', sans-serif !important;
+    border-radius: 12px !important;
+    border: 2px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    font-family: 'Inter', sans-serif !important;
     font-size: 0.95rem !important;
-    padding: 0.6rem 0.75rem !important;
-    transition: border-color 0.15s;
+    padding: 0.875rem 1rem !important;
+    transition: all 0.2s ease;
+    font-weight: 500;
 }
+
 [data-testid="stTextInput"] input:focus,
 [data-testid="stNumberInput"] input:focus {
-    border-color: #1A1A1A !important;
-    box-shadow: none !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
     outline: none !important;
 }
+
 [data-testid="stTextInput"] label,
 [data-testid="stNumberInput"] label,
 [data-testid="stSelectbox"] label {
-    font-size: 0.72rem !important;
+    font-size: 0.8rem !important;
     font-weight: 600 !important;
-    color: #666 !important;
-    letter-spacing: 0.05em !important;
+    color: #475569 !important;
+    letter-spacing: 0.025em !important;
     text-transform: uppercase !important;
-    margin-bottom: 0.25rem !important;
+    margin-bottom: 0.5rem !important;
 }
 
 /* Selectbox */
 [data-testid="stSelectbox"] > div > div {
-    border-radius: 8px !important;
-    border: 1.5px solid #E0E0DC !important;
-    background: #FFFFFF !important;
-    font-family: 'DM Sans', sans-serif !important;
+    border-radius: 12px !important;
+    border: 2px solid #e2e8f0 !!important;
+    background: #ffffff !important;
 }
 
-/* Buttons */
-[data-testid="stButton"] button {
-    border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important;
+/* Buttons - Primary */
+.stButton > button {
+    border-radius: 12px !important;
+    font-family: 'Inter', sans-serif !important;
     font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    letter-spacing: 0.01em !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.025em !important;
     border: none !important;
-    padding: 0.6rem 1.1rem !important;
-    transition: opacity 0.15s, transform 0.1s !important;
+    padding: 0.875rem 1.5rem !important;
+    transition: all 0.2s ease !important;
     width: 100% !important;
-    background: #1A1A1A !important;
-    color: #FFFFFF !important;
-}
-[data-testid="stButton"] button:hover {
-    opacity: 0.82 !important;
-    transform: translateY(-1px) !important;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
 }
 
-/* Download button */
-[data-testid="stDownloadButton"] button {
-    background: #F0EFE9 !important;
-    color: #1A1A1A !important;
-    border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important;
+.stButton > button:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.4);
+}
+
+/* Secondary buttons */
+.stDownloadButton > button {
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 12px !important;
     font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    border: 1.5px solid #E0E0DC !important;
+    font-size: 0.9rem !important;
     width: 100% !important;
-    padding: 0.6rem 1.1rem !important;
-    transition: opacity 0.15s !important;
-}
-[data-testid="stDownloadButton"] button:hover {
-    opacity: 0.75 !important;
+    padding: 0.875rem 1.5rem !important;
+    transition: all 0.2s ease;
 }
 
-/* Radio */
+.stDownloadButton > button:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    transform: translateY(-1px);
+}
+
+/* Radio buttons */
 [data-testid="stRadio"] label {
-    font-size: 0.88rem !important;
+    font-size: 0.95rem !important;
     font-weight: 500 !important;
-    color: #333 !important;
+    color: #374151 !important;
+    padding: 0.5rem 0;
 }
 
 /* File uploader */
 [data-testid="stFileUploader"] {
-    border: 2px dashed #D0CFC9 !important;
-    border-radius: 12px !important;
-    background: #FAFAF7 !important;
+    border: 2px dashed #e2e8f0 !important;
+    border-radius: 16px !important;
+    background: #f8fafc !important;
+    transition: all 0.2s ease;
 }
-[data-testid="stFileUploader"] label {
-    font-size: 0.72rem !important;
-    font-weight: 600 !important;
-    color: #666 !important;
-    letter-spacing: 0.05em !important;
-    text-transform: uppercase !important;
+
+[data-testid="stFileUploader"]:hover {
+    border-color: #cbd5e1 !important;
+    background: #f1f5f9 !important;
 }
 
 /* Dataframe */
 [data-testid="stDataFrame"] {
-    border-radius: 10px !important;
+    border-radius: 16px !important;
     overflow: hidden !important;
-    border: 1px solid #E8E8E4 !important;
-    font-size: 0.82rem !important;
-}
-
-/* Alerts */
-[data-testid="stAlert"] {
-    border-radius: 10px !important;
-    font-size: 0.85rem !important;
-    border: none !important;
-    font-family: 'DM Sans', sans-serif !important;
+    border: 1px solid #e2e8f0 !important;
+    font-size: 0.88rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0,0, 0.1);
 }
 
 /* Info box */
 .info-box {
-    background: #FFFFFF;
-    border: 1px solid #E8E8E4;
-    border-radius: 10px;
-    padding: 0.9rem 1.1rem;
-    font-size: 0.82rem;
-    color: #666;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    font-size: 0.9rem;
+    color: #64748b;
     line-height: 1.7;
-    margin-bottom: 0.8rem;
-    font-family: 'DM Mono', monospace;
+    margin-bottom: 1rem;
 }
+
 .info-box strong {
-    font-family: 'DM Sans', sans-serif;
-    color: #1A1A1A;
-    display: block;
-    margin-bottom: 0.35rem;
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
+    color: #1e293b;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
 }
 
 /* Divider */
 hr {
     border: none !important;
-    border-top: 1px solid #E8E8E4 !important;
-    margin: 1.5rem 0 !important;
+    border-top: 1px solid #e2e8f0 !important;
+    margin: 2.5rem 0 !important;
 }
 
-/* Simulation result */
+/* Simulation results */
 .sim-result-ok {
-    background: #F0FAF4;
-    border: 1.5px solid #6FCF97;
-    border-radius: 10px;
-    padding: 0.85rem 1rem;
-    color: #1A6B3C;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border: 2px solid #22c55e;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    color: #166534;
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     text-align: center;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
 }
+
 .sim-result-fail {
-    background: #FFF5F5;
-    border: 1.5px solid #F47C7C;
-    border-radius: 10px;
-    padding: 0.85rem 1rem;
-    color: #9B2020;
+    background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+    border: 2px solid #ef4444;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    color: #dc2626;
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     text-align: center;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+/* Columns spacing */
+.stColumns > div {
+    padding: 0 0.25rem;
 }
 
 /* Mobile */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .block-container {
-        padding: 0.75rem 0.6rem 2.5rem !important;
+        padding: 1.5rem 1rem 3rem !important;
     }
     .app-header {
-        border-radius: 12px;
-        padding: 1.1rem 1.1rem 1rem;
+        border-radius: 16px;
+        padding: 1.5rem 1.25rem 1.25rem;
+        margin-bottom: 1.5rem;
     }
 }
 </style>
 """, unsafe_allow_html=True)
-
 # =========================
 # SESSION STATE
 # =========================
