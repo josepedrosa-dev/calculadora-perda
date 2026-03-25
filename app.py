@@ -460,9 +460,9 @@ if st.session_state.df is not None and st.session_state.df_res is None:
         resultados.append({
             "INSTALACAO":   row["INSTALACAO"],
             "PERDA_%":      round(perda_pct * 100, 2),
-            "RED_MIN":      round(red_min, 2),
-            "RED_10":       round(red_10, 2),
-            "RED_TOTAL":    round(red_total, 2),
+            "RED_MIN_EFICIÊNCIA":      round(red_min, 2),
+            "RED_PARA_ADEQUADA":       round(red_10, 2),
+            "RED_NECESSÁRIA":    round(red_total, 2),
             "PERDA_FINAL":  round(perda_final, 2),
             "ATINGIU_META": perda_final <= (perda - red_total),
             "TOTAL_ACOES":  sum(plano.values()),
@@ -552,7 +552,7 @@ if st.session_state.df_res is not None:
         st.markdown('<div class="sim-result-ok">Meta atingida</div>', unsafe_allow_html=True)
     else:
         st.markdown(
-            f'<div class="sim-result-fail">Faltam {perda_proj - meta:.2f} para atingir a meta</div>',
+            f'<div class="sim-result-fail">Faltam {perda_proj - meta:.2f} kWh para atingir a meta</div>',
             unsafe_allow_html=True
         )
 
