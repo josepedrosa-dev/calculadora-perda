@@ -11,13 +11,19 @@ st.title("📊 Gestão Inteligente de Perdas")
 st.markdown("Planejamento, otimização e simulação operacional de perdas")
 
 # =========================
-# SESSION STATE (manual)
+# SESSION STATE
 # =========================
 if "df_manual" not in st.session_state:
     st.session_state.df_manual = pd.DataFrame(columns=[
         "INSTALACAO","REQUERIDA","INJETADA",
         "REVERSA","CONSUMO","ILUMINACAO_PUBLICA"
     ])
+
+# ← NOVO: persiste df e df_res entre re-runs
+if "df" not in st.session_state:
+    st.session_state.df = None
+if "df_res" not in st.session_state:
+    st.session_state.df_res = None
 
 # =========================
 # CURVA EQTL
@@ -43,8 +49,6 @@ st.markdown("## 📥 Entrada de Dados")
 
 modo = st.radio("Modo:", ["Upload de Excel","Manual"])
 
-df = None
-
 # =========================
 # UPLOAD
 # =========================
@@ -58,7 +62,9 @@ INSTALACAO | REQUERIDA | INJETADA | REVERSA | CONSUMO | ILUMINACAO_PUBLICA
     file = st.file_uploader("Upload Excel", type=["xlsx"])
 
     if file:
-        df = pd.read_excel(file)
+        # ← Salva no session_state ao fazer upload
+        st.session_state.df = pd.read_excel(file)
+        st.session_state.df_res = None  # reset resultado ao trocar arquivo
 
 # =========================
 # MANUAL
@@ -92,22 +98,30 @@ elif modo == "Manual":
                 "ILUMINACAO_PUBLICA": iluminacao
             }])
             st.session_state.df_manual = pd.concat([st.session_state.df_manual, nova], ignore_index=True)
+            st.session_state.df_res = None  # reset resultado ao adicionar linha
 
     if st.button("🗑️ Limpar"):
         st.session_state.df_manual = st.session_state.df_manual.iloc[0:0]
+        st.session_state.df = None
+        st.session_state.df_res = None
 
     st.dataframe(st.session_state.df_manual)
 
     if not st.session_state.df_manual.empty:
         if st.button("🚀 Rodar Análise"):
-            df = st.session_state.df_manual.copy()
+            # ← Salva no session_state ao rodar análise
+            st.session_state.df = st.session_state.df_manual.copy()
+            st.session_state.df_res = None  # força reprocessamento
 
 # =========================
 # PROCESSAMENTO
+# ← Roda sempre que df existe mas df_res ainda não foi calculado
 # =========================
-if df is not None:
+if st.session_state.df is not None and st.session_state.df_res is None:
 
+    df = st.session_state.df.copy()
     df.columns = df.columns.str.strip().str.upper()
+    st.session_state.df = df  # salva versão normalizada
 
     resultados = []
 
@@ -173,7 +187,17 @@ if df is not None:
             **plano
         })
 
-    df_res = pd.DataFrame(resultados)
+    # ← Persiste resultado no session_state
+    st.session_state.df_res = pd.DataFrame(resultados)
+
+# =========================
+# DASHBOARD + SIMULADOR
+# ← Lê direto do session_state, sem depender do fluxo acima
+# =========================
+if st.session_state.df_res is not None:
+
+    df_res = st.session_state.df_res
+    df = st.session_state.df
 
     # =========================
     # DASHBOARD
@@ -217,13 +241,13 @@ if df is not None:
     c1,c2,c3 = st.columns(3)
 
     with c1:
-        inc = st.number_input("Inclusões",0)
+        inc = st.number_input("Inclusões", 0, key="sim_inc")
     with c2:
-        c100 = st.number_input("Cod100",0)
-        c200 = st.number_input("Cod200",0)
+        c100 = st.number_input("Cod100", 0, key="sim_c100")
+        c200 = st.number_input("Cod200", 0, key="sim_c200")
     with c3:
-        exc = st.number_input("Exclusões",0)
-        c300 = st.number_input("Cod300",0)
+        exc = st.number_input("Exclusões", 0, key="sim_exc")
+        c300 = st.number_input("Cod300", 0, key="sim_c300")
 
     ganho = inc*150 + c100*120 + exc*100 + c200*100 + c300*30
     perda_proj = perda - ganho
@@ -236,9 +260,9 @@ if df is not None:
     r3.metric("Meta", meta)
 
     if perda_proj <= meta:
-        st.success("Meta atingida")
+        st.success("✅ Meta atingida")
     else:
-        st.error(f"Faltam {perda_proj-meta:.2f}")
+        st.error(f"❌ Faltam {perda_proj-meta:.2f}")
 
 else:
     st.info("Escolha um modo e insira dados.")
