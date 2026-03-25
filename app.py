@@ -303,13 +303,13 @@ elif modo == "Manual":
 
     with col1:
         inst       = st.text_input("Instalação MF", placeholder = "Campo Necessário")
-        requerida  = st.number_input("Requerida",  500.0, key="in_req")
-        injetada   = st.number_input("Injetada",   500.0, key="in_inj")
+        requerida  = st.number_input("Requerida",  step = 500.0, key="in_req")
+        injetada   = st.number_input("Injetada",   step = 500.0, key="in_inj")
 
     with col2:
-        reversa    = st.number_input("Reversa",             500.0, key="in_rev")
-        consumo    = st.number_input("Consumo",             500.0, key="in_con")
-        iluminacao = st.number_input("Iluminação Pública",  500.0, key="in_ilu")
+        reversa    = st.number_input("Reversa",   step =    500.0, key="in_rev")
+        consumo    = st.number_input("Consumo",   step =    500.0, key="in_con")
+        iluminacao = st.number_input("Iluminação Pública",  step = 500.0, key="in_ilu")
 
     col_add, col_clear = st.columns(2)
 
