@@ -401,8 +401,7 @@ if st.session_state.df is not None and st.session_state.df_res is None:
             "RED_MIN_EFICIÊNCIA":      round(red_min, 2),
             "RED_PARA_ADEQUADA":       round(red_10, 2),
             "RED_NECESSÁRIA":    round(red_total, 2),
-            "PERDA_(kWh)":  round(perda, 2),
-            **plano
+            "PERDA_(kWh)":  round(perda, 2)
         })
 
     st.session_state.df_res = pd.DataFrame(resultados)
