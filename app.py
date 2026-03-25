@@ -503,72 +503,72 @@ if st.session_state.df_res is not None:
     st.markdown('<p class="section-label">Ações por Instalação</p>', unsafe_allow_html=True)
     st.bar_chart(df_res.set_index("INSTALACAO")["TOTAL_ACOES"], use_container_width=True)
 
- # =========================
-# EXPORTAÇÃO AVANÇADA
-# =========================
-st.markdown('<p class="section-label">Exportar Relatório</p>', unsafe_allow_html=True)
-
-# 1. RESUMO GERAL
-resumo = pd.DataFrame({
-    "Métrica": ["Instalações Totais", "Meta Atingida (%)", "Ações Totais", "Perda Média (%)"],
-    "Valor": [
-        len(df_res),
-        f"{df_res['ATINGIU_META'].mean() * 100:.1f}%",
-        int(df_res["TOTAL_ACOES"].sum()),
-        f"{df_res['PERDA_%'].mean():.1f}%"
-    ]
-})
-
-# 2. AÇÕES AGREGADAS
-acoes_totais = pd.DataFrame({
-    "Ação": ["Inclusões", "Cod 100", "Exclusões", "Cod 200", "Cod 300"],
-    "Impacto Unitário": [150, 120, 100, 100, 30],
-    "Quantidade Total": [
-        int(df_res["Inclusoes"].sum()),
-        int(df_res["Cod100"].sum()), 
-        int(df_res["Exclusoes"].sum()),
-        int(df_res["Cod200"].sum()),
-        int(df_res["Cod300"].sum())
-    ],
-    "Impacto Total": [
-        int(df_res["Inclusoes"].sum() * 150),
-        int(df_res["Cod100"].sum() * 120),
-        int(df_res["Exclusoes"].sum() * 100),
-        int(df_res["Cod200"].sum() * 100),
-        int(df_res["Cod300"].sum() * 30)
-    ]
-})
-
-# 3. MERGE DOS 3 RELATÓRIOS
-relatorio_completo = pd.concat([
-    resumo,
-    pd.DataFrame({"": [""] * len(resumo)}),  # Linha em branco
-    pd.DataFrame({"Título": ["RESUMO DAS AÇÕES"], "": [""]}),
-    acoes_totais,
-    pd.DataFrame({"": [""] * len(acoes_totais)}),  # Linha em branco  
-    pd.DataFrame({"Título": ["DETALHAMENTO POR INSTALAÇÃO"], "": [""]}),
-    df_res
-], ignore_index=True)
-
-col1, col2 = st.columns([1, 2])
-
-with col1:
-    # CSV Simples
-    st.download_button(
-        "📊 CSV Simples",
-        df_res.to_csv(index=False),
-        "resultado.csv",
-        mime="text/csv"
-    )
-
-with col2:
-    # RELATÓRIO COMPLETO
-    st.download_button(
-        "📈 Relatório Completo",
-        relatorio_completo.to_csv(index=False),
-        "relatorio-completo.csv",
-        mime="text/csv"
-    )
+     # =========================
+    # EXPORTAÇÃO AVANÇADA
+    # =========================
+    st.markdown('<p class="section-label">Exportar Relatório</p>', unsafe_allow_html=True)
+    
+    # 1. RESUMO GERAL
+    resumo = pd.DataFrame({
+        "Métrica": ["Instalações Totais", "Meta Atingida (%)", "Ações Totais", "Perda Média (%)"],
+        "Valor": [
+            len(df_res),
+            f"{df_res['ATINGIU_META'].mean() * 100:.1f}%",
+            int(df_res["TOTAL_ACOES"].sum()),
+            f"{df_res['PERDA_%'].mean():.1f}%"
+        ]
+    })
+    
+    # 2. AÇÕES AGREGADAS
+    acoes_totais = pd.DataFrame({
+        "Ação": ["Inclusões", "Cod 100", "Exclusões", "Cod 200", "Cod 300"],
+        "Impacto Unitário": [150, 120, 100, 100, 30],
+        "Quantidade Total": [
+            int(df_res["Inclusoes"].sum()),
+            int(df_res["Cod100"].sum()), 
+            int(df_res["Exclusoes"].sum()),
+            int(df_res["Cod200"].sum()),
+            int(df_res["Cod300"].sum())
+        ],
+        "Impacto Total": [
+            int(df_res["Inclusoes"].sum() * 150),
+            int(df_res["Cod100"].sum() * 120),
+            int(df_res["Exclusoes"].sum() * 100),
+            int(df_res["Cod200"].sum() * 100),
+            int(df_res["Cod300"].sum() * 30)
+        ]
+    })
+    
+    # 3. MERGE DOS 3 RELATÓRIOS
+    relatorio_completo = pd.concat([
+        resumo,
+        pd.DataFrame({"": [""] * len(resumo)}),  # Linha em branco
+        pd.DataFrame({"Título": ["RESUMO DAS AÇÕES"], "": [""]}),
+        acoes_totais,
+        pd.DataFrame({"": [""] * len(acoes_totais)}),  # Linha em branco  
+        pd.DataFrame({"Título": ["DETALHAMENTO POR INSTALAÇÃO"], "": [""]}),
+        df_res
+    ], ignore_index=True)
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        # CSV Simples
+        st.download_button(
+            "📊 CSV Simples",
+            df_res.to_csv(index=False),
+            "resultado.csv",
+            mime="text/csv"
+        )
+    
+    with col2:
+        # RELATÓRIO COMPLETO
+        st.download_button(
+            "📈 Relatório Completo",
+            relatorio_completo.to_csv(index=False),
+            "relatorio-completo.csv",
+            mime="text/csv"
+        )
 
     st.markdown("---")
 
