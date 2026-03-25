@@ -148,5 +148,80 @@ if file:
         "resultado.csv"
     )
 
+
+st.markdown("---")
+st.subheader("🛠️ Simulação de Execução (Campo)")
+
+# Seleciona instalação
+inst_sel = st.selectbox("Selecione a instalação", df_res["INSTALACAO"])
+
+linha = df_res[df_res["INSTALACAO"] == inst_sel].iloc[0]
+
+st.write(f"Perda inicial: {linha['PERDA_%']:.2f}%")
+st.write(f"Meta redução (%): {linha['META_%']}%")
+
+# Inputs do técnico
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    exec_inclusoes = st.number_input("Inclusões executadas", value=0)
+
+with col2:
+    exec_cod100 = st.number_input("Cód 100 executados", value=0)
+    exec_cod200 = st.number_input("Cód 200 executados", value=0)
+
+with col3:
+    exec_exclusoes = st.number_input("Exclusões executadas", value=0)
+    exec_cod300 = st.number_input("Cód 300 executados", value=0)
+
+# =========================
+# CÁLCULO DA PROJEÇÃO REAL
+# =========================
+
+ganho_real = (
+    exec_inclusoes * 150 +
+    exec_cod100 * 120 +
+    exec_exclusoes * 100 +
+    exec_cod200 * 100 +
+    exec_cod300 * 30
+)
+
+perda_inicial = df[df["INSTALACAO"] == inst_sel]["PERDA_INICIAL"].values[0]
+
+perda_proj = perda_inicial - ganho_real
+
+# Meta absoluta
+reducao_necessaria = linha["REDUCAO_NEC"]
+meta_perda = perda_inicial - reducao_necessaria
+
+# =========================
+# RESULTADO
+# =========================
+
+st.markdown("---")
+st.subheader("📉 Resultado da Execução")
+
+col4, col5, col6 = st.columns(3)
+
+col4.metric("Ganho obtido", f"{ganho_real:.2f}")
+col5.metric("Perda projetada", f"{perda_proj:.2f}")
+col6.metric("Meta alvo", f"{meta_perda:.2f}")
+
+if perda_proj <= meta_perda:
+    st.success("✅ Meta atingida com execução atual")
+else:
+    gap = perda_proj - meta_perda
+    st.error(f"❌ Ainda faltam {gap:.2f} de redução")
+
+# =========================
+# COMPARAÇÃO COM OTIMIZADOR
+# =========================
+
+st.markdown("---")
+st.subheader("📊 Comparação: Planejado vs Executado")
+
+st.write("Plano sugerido pelo modelo:")
+st.write({k: linha[k] for k in ["Inclusoes","Cod100","Exclusoes","Cod200","Cod300"] if k in linha})
+
 else:
     st.info("Faça upload da base para iniciar.")
