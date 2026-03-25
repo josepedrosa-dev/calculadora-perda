@@ -472,7 +472,7 @@ if st.session_state.df_res is not None:
 
     r1, r2, r3 = st.columns(3)
     r1.metric("Ganho",       f"{ganho:.2f}")
-    r2.metric("Perda Final", f"{perda_proj:.2f}")
+    r2.metric("Perda Atual", f"{perda_proj:.2f}")
     r3.metric("Meta",        f"{meta:.2f}")
 
     if perda_proj <= meta:
