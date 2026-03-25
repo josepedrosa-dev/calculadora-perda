@@ -474,11 +474,7 @@ if st.session_state.df is not None and st.session_state.df_res is None:
 # =========================
 # DASHBOARD + SIMULADOR
 # =========================
-    if st.session_state.df_res is not None:
-        df_res = st.session_state.df_res
-        df = st.session_state.df
-    
-      if df_res is None or df_res.shape[0] == 0:
+    if df_res is None or df_res.shape[0] == 0:
         st.warning("Nenhum resultado gerado.")
     
         if df is None or df.empty:
