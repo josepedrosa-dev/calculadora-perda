@@ -2,9 +2,13 @@ import streamlit as st
 import pandas as pd
 import math
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Gestão de Perdas", layout="wide")
 
-st.title("📊 Gestão de Perdas - Dashboard Inteligente")
+# =========================
+# HEADER
+# =========================
+st.title("📊 Gestão Inteligente de Perdas")
+st.markdown("Ferramenta de apoio à decisão para redução de perdas e planejamento operacional")
 
 # =========================
 # CURVA EQTL
@@ -21,22 +25,69 @@ curva_lista = [
     16.46,16.6,16.73,16.87,17,17.13,17.26,17.4,17.53,17.66,
     17.79,17.92,18.05,18.18,18.31,18.43,18.56,18.69,18.81,18.94
 ]
-
 curva = {i: curva_lista[i] for i in range(len(curva_lista))}
+
+# =========================
+# ENTRADA DE DADOS
+# =========================
+st.markdown("## 📥 Entrada de Dados")
+
+modo = st.radio(
+    "Escolha o modo:",
+    ["Upload de Excel", "Preenchimento Manual"]
+)
+
+df = None
 
 # =========================
 # UPLOAD
 # =========================
+if modo == "Upload de Excel":
 
-file = st.file_uploader("📂 Upload da base (Excel)", type=["xlsx"])
+    st.info("""
+    📌 Formato obrigatório:
+    - INSTALACAO
+    - REQUERIDA
+    - INJETADA
+    - PERDA_INICIAL
+    """)
 
-if file:
+    file = st.file_uploader("Upload da base", type=["xlsx"])
 
-    df = pd.read_excel(file)
+    if file:
+        df = pd.read_excel(file)
 
-    # =========================
-    # PROCESSAMENTO
-    # =========================
+# =========================
+# MANUAL
+# =========================
+elif modo == "Preenchimento Manual":
+
+    st.subheader("✍️ Inserir Dados")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        inst = st.text_input("Instalação", "INST_001")
+        requerida = st.number_input("Energia Requerida", value=10000.0)
+
+    with col2:
+        injetada = st.number_input("Energia Injetada", value=0.0)
+        perda_inicial = st.number_input("Perda Inicial", value=2000.0)
+
+    if st.button("Calcular"):
+        df = pd.DataFrame([{
+            "INSTALACAO": inst,
+            "REQUERIDA": requerida,
+            "INJETADA": injetada,
+            "PERDA_INICIAL": perda_inicial
+        }])
+
+# =========================
+# PROCESSAMENTO
+# =========================
+if df is not None:
+
+    df.columns = df.columns.str.strip().str.upper()
 
     resultados = []
 
@@ -47,7 +98,6 @@ if file:
         perda_inicial = row["PERDA_INICIAL"]
 
         total = requerida + injetada
-
         if total == 0:
             continue
 
@@ -55,13 +105,15 @@ if file:
         faixa = math.ceil(perda_pct * 100)
 
         meta_pct = curva.get(faixa, 0)
-        #reducao = meta_pct / 100 * total
-        reducao = perda_inicial * (meta_pct/100)
 
-        # =========================
+        # METAS
+        reducao_minima = perda_inicial * (meta_pct/100)
+        meta_10 = 0.10 * total
+        reducao_10 = max(0, perda_inicial - meta_10)
+
+        reducao = max(reducao_minima, reducao_10)
+
         # OTIMIZADOR
-        # =========================
-
         ganho_necessario = reducao
 
         acoes = [
@@ -81,21 +133,19 @@ if file:
             if ganho >= ganho_necessario:
                 break
 
-            restante = ganho_necessario - ganho
-            qtd = math.ceil(restante / impacto)
-
+            qtd = math.ceil((ganho_necessario - ganho) / impacto)
             plano[nome] = qtd
             ganho += qtd * impacto
 
         perda_final = perda_inicial - ganho
-        gap = (perda_inicial - reducao) - perda_final
 
         resultados.append({
             "INSTALACAO": row["INSTALACAO"],
             "PERDA_%": perda_pct * 100,
             "META_%": meta_pct,
-            "REDUCAO_NEC": reducao,
-            "GANHO_OTIM": ganho,
+            "RED_MIN": reducao_minima,
+            "RED_10": reducao_10,
+            "RED_TOTAL": reducao,
             "PERDA_FINAL": perda_final,
             "ATINGIU_META": perda_final <= (perda_inicial - reducao),
             "TOTAL_ACOES": sum(plano.values()),
@@ -105,79 +155,66 @@ if file:
     df_res = pd.DataFrame(resultados)
 
     # =========================
-    # DASHBOARD
+    # KPIs
     # =========================
-
-    st.subheader("📊 Visão Executiva")
+    st.markdown("## 📊 Visão Executiva")
 
     col1, col2, col3 = st.columns(3)
 
     col1.metric("Instalações", len(df_res))
-    col2.metric("Meta Atingida", df_res["ATINGIU_META"].mean()*100)
-    col3.metric("Ações Totais", df_res["TOTAL_ACOES"].sum())
+    col2.metric("Meta Atingida (%)", f"{df_res['ATINGIU_META'].mean()*100:.1f}%")
+    col3.metric("Ações Totais", int(df_res["TOTAL_ACOES"].sum()))
 
     st.markdown("---")
 
     # =========================
     # RANKING
     # =========================
-
     st.subheader("🔥 Ranking Prioritário")
 
     ranking = df_res.sort_values(by="PERDA_%", ascending=False)
-
     st.dataframe(ranking, use_container_width=True)
 
     # =========================
     # GRÁFICOS
     # =========================
-
     st.subheader("📈 Análises")
 
     st.bar_chart(df_res.set_index("INSTALACAO")["PERDA_%"])
-
     st.bar_chart(df_res.set_index("INSTALACAO")["TOTAL_ACOES"])
 
     # =========================
     # DOWNLOAD
     # =========================
-
     st.download_button(
         "📥 Baixar Resultado",
         df_res.to_csv(index=False),
         "resultado.csv"
     )
 
-
+    # =========================
+    # SIMULADOR
+    # =========================
     st.markdown("---")
-    st.subheader("🛠️ Simulação de Execução (Campo)")
-    
-    # Seleciona instalação
+    st.subheader("🛠️ Simulação de Execução")
+
     inst_sel = st.selectbox("Selecione a instalação", df_res["INSTALACAO"])
-    
     linha = df_res[df_res["INSTALACAO"] == inst_sel].iloc[0]
-    
-    st.write(f"Perda inicial: {linha['PERDA_%']:.2f}%")
-    st.write(f"Meta redução (%): {linha['META_%']}%")
-    
-    # Inputs do técnico
+
+    perda_inicial = df.loc[df["INSTALACAO"] == inst_sel, "PERDA_INICIAL"].iloc[0]
+    meta_perda = perda_inicial - linha["RED_TOTAL"]
+
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
-        exec_inclusoes = st.number_input("Inclusões executadas", value=0)
-    
+        exec_inclusoes = st.number_input("Inclusões", 0)
     with col2:
-        exec_cod100 = st.number_input("Cód 100 executados", value=0)
-        exec_cod200 = st.number_input("Cód 200 executados", value=0)
-    
+        exec_cod100 = st.number_input("Cód 100", 0)
+        exec_cod200 = st.number_input("Cód 200", 0)
     with col3:
-        exec_exclusoes = st.number_input("Exclusões executadas", value=0)
-        exec_cod300 = st.number_input("Cód 300 executados", value=0)
-    
-    # =========================
-    # CÁLCULO DA PROJEÇÃO REAL
-    # =========================
-    
+        exec_exclusoes = st.number_input("Exclusões", 0)
+        exec_cod300 = st.number_input("Cód 300", 0)
+
     ganho_real = (
         exec_inclusoes * 150 +
         exec_cod100 * 120 +
@@ -185,43 +222,21 @@ if file:
         exec_cod200 * 100 +
         exec_cod300 * 30
     )
-    
-    perda_inicial = df[df["INSTALACAO"] == inst_sel]["PERDA_INICIAL"].values[0]
-    
+
     perda_proj = perda_inicial - ganho_real
-    
-    # Meta absoluta
-    reducao_necessaria = linha["REDUCAO_NEC"]
-    meta_perda = perda_inicial - reducao_necessaria
-    
-    # =========================
-    # RESULTADO
-    # =========================
-    
-    st.markdown("---")
-    st.subheader("📉 Resultado da Execução")
-    
+
+    st.markdown("### 📉 Resultado")
+
     col4, col5, col6 = st.columns(3)
-    
-    col4.metric("Ganho obtido", f"{ganho_real:.2f}")
-    col5.metric("Perda projetada", f"{perda_proj:.2f}")
-    col6.metric("Meta alvo", f"{meta_perda:.2f}")
-    
+
+    col4.metric("Ganho", f"{ganho_real:.2f}")
+    col5.metric("Perda Projetada", f"{perda_proj:.2f}")
+    col6.metric("Meta", f"{meta_perda:.2f}")
+
     if perda_proj <= meta_perda:
-        st.success("✅ Meta atingida com execução atual")
+        st.success("✅ Meta atingida")
     else:
-        gap = perda_proj - meta_perda
-        st.error(f"❌ Ainda faltam {gap:.2f} de redução")
-    
-    # =========================
-    # COMPARAÇÃO COM OTIMIZADOR
-    # =========================
-    
-    st.markdown("---")
-    st.subheader("📊 Comparação: Planejado vs Executado")
-    
-    st.write("Plano sugerido pelo modelo:")
-    st.write({k: linha[k] for k in ["Inclusoes","Cod100","Exclusoes","Cod200","Cod300"] if k in linha})
+        st.error(f"❌ Faltam {perda_proj - meta_perda:.2f}")
 
 else:
-    st.info("Faça upload da base para iniciar.")
+    st.info("Escolha um modo de entrada para começar.")
