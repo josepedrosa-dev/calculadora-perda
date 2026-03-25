@@ -532,10 +532,10 @@ if st.session_state.df_res is not None:
         ],
         "Impacto Total": [
             int(df_res["Inclusoes"].sum() * 150),
-            int(df_res["Cod100"].sum() * 120),
+            int(df_res["Cod 100"].sum() * 120),
             int(df_res["Exclusoes"].sum() * 100),
-            int(df_res["Cod200"].sum() * 100),
-            int(df_res["Cod300"].sum() * 30)
+            int(df_res["Cod 200"].sum() * 100),
+            int(df_res["Cod 300"].sum() * 30)
         ]
     })
     
