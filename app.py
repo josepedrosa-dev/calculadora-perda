@@ -302,7 +302,7 @@ elif modo == "Manual":
     col1, col2 = st.columns(2)
 
     with col1:
-        inst       = st.text_input("Instalação MF", placeholder = "Medição Fiscal")
+        inst       = st.text_input("Instalação MF", placeholder = "Campo Necessário")
         requerida  = st.number_input("Requerida",  0.0, key="in_req")
         injetada   = st.number_input("Injetada",   0.0, key="in_inj")
 
