@@ -434,13 +434,6 @@ if st.session_state.df_res is not None:
         use_container_width=True
     )
 
-    # Gráficos
-    """st.markdown('<p class="section-label">Perda por Instalação (%)</p>', unsafe_allow_html=True)
-    st.bar_chart(df_res.set_index("INSTALACAO")["PERDA_%"], use_container_width=True)
-
-    st.markdown('<p class="section-label">Ações por Instalação</p>', unsafe_allow_html=True)
-    st.bar_chart(df_res.set_index("INSTALACAO")["TOTAL_ACOES"], use_container_width=True)
-"""
     # Download
     st.markdown('<p class="section-label">Exportar</p>', unsafe_allow_html=True)
     st.download_button(
