@@ -380,7 +380,7 @@ if st.session_state.df is not None and st.session_state.df_res is None:
         acoes = [
             ("Inclusoes", 150),
             ("Cod100",    120),
-            ("Exclusoes", 100),
+            ("Exclusoes", -100),
             ("Cod200",    100),
             ("Cod300",     30)
         ]
@@ -411,7 +411,7 @@ if st.session_state.df is not None and st.session_state.df_res is None:
 # =========================
 ganho_inc  = 150.0
 ganho_c100 = 120.0
-ganho_exc  = 100.0
+ganho_exc  = -100.0
 ganho_c200 = 100.0
 ganho_c300 = 30.0
 
@@ -529,7 +529,7 @@ if st.session_state.df_res is not None:
     ganho_total = (
         calcular_ganho(inc,  ganho_inc,  "Inclusões") +
         calcular_ganho(c100, ganho_c100, "Cod 100") +
-        calcular_ganho(exc,  ganho_exc,  "Exclusões") +
+        calcular_ganho(exc,  -ganho_exc,  "Exclusões") +
         calcular_ganho(c200, ganho_c200, "Cod 200") +
         calcular_ganho(c300, ganho_c300, "Cod 300")
     )
