@@ -503,7 +503,7 @@ if st.session_state.df_res is not None:
                         min_value=0.0,
                         value=float(valor_padrao),
                         key=f"{prefixo}_{i}",
-                        step = 20
+                        step = 20.0
                     )
                     ganhos.append(val)
             return sum(ganhos)
