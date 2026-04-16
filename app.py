@@ -9,36 +9,35 @@ st.set_page_config(
 )
 
 # =========================
-# PALETA LIME-TEAL VIBRANT
+# ESTILO (ALTO CONTRASTE)
 # =========================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* VARIÁVEIS DA PALETA */
+/* VARIÁVEIS */
 :root {
-    --lime-cream: #d9ed92;
-    --light-green: #b5e48c;
-    --light-green-2: #99d98c;
-    --emerald: #76c893;
-    --ocean-mist: #52b69a;
-    --tropical-teal: #34a0a4;
-    --bondi-blue: #168aad;
-    --cerulean: #1a759f;
-    --baltic-blue: #1e6091;
-    --yale-blue: #184e77;
-    
-    --bg-primary: #f9fcfa;
+    --blue-900: #0f2740;
+    --blue-700: #1f4f7a;
+    --blue-600: #2d648f;
+    --green-500: #2f9e79;
+    --green-100: #e8f6f0;
+    --gray-50: #f7fafc;
+    --gray-100: #eef3f7;
+    --gray-300: #ccd9e5;
+    --gray-700: #334b61;
+
+    --bg-primary: #f4f8fb;
     --bg-card: #ffffff;
-    --text-primary: #1a3c34;
-    --text-secondary: #2d5a4a;
-    --border: #e6f3e8;
+    --text-primary: #10273d;
+    --text-secondary: #35506b;
+    --border: #d8e3ec;
 }
 
 /* BASE */
-* { font-family: 'Inter', sans-serif; }
+* { font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
 .stApp { 
-    background: linear-gradient(135deg, var(--bg-primary) 0%, #f0f8f5 100%);
+    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--gray-50) 100%);
     color: var(--text-primary);
 }
 
@@ -48,13 +47,13 @@ st.markdown("""
     color: var(--text-primary);
 }
 
-/* HEADER VIBRANTE */
+/* HEADER */
 .app-header {
-    background: linear-gradient(135deg, var(--yale-blue) 0%, var(--baltic-blue) 20%, var(--bondi-blue) 100%);
+    background: linear-gradient(135deg, var(--blue-900) 0%, var(--blue-700) 100%);
     border-radius: 24px;
     padding: 2.5rem 2rem 2rem;
     margin-bottom: 2.5rem;
-    box-shadow: 0 25px 50px -12px rgba(24, 78, 119, 0.3);
+    box-shadow: 0 16px 32px -10px rgba(15, 39, 64, 0.35);
     position: relative;
     overflow: hidden;
 }
@@ -66,7 +65,7 @@ st.markdown("""
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, var(--lime-cream), var(--light-green), var(--tropical-teal));
+    background: linear-gradient(90deg, #7dd3fc, #34d399);
 }
 
 .app-header h1 {
@@ -78,32 +77,216 @@ st.markdown("""
 }
 
 .app-header p {
-    color: #e6f3e8;
+    color: #d8e8f6;
     font-size: 1rem;
     font-weight: 400;
     margin: 0;
 }
 
+.app-header p,
+.app-header h1 {
+    color: #ffffff !important;
+}
+
+[data-testid="stMarkdownContainer"] .app-header h1,
+[data-testid="stMarkdownContainer"] .app-header p {
+    color: #ffffff !important;
+}
+
 /* SEÇÕES */
 .section-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    background: linear-gradient(135deg, var(--tropical-teal), var(--bondi-blue));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--blue-700);
     margin: 3rem 0 1.25rem 0;
 }
 
-/* MÉTRICAS LIME-GREEN */
+.helper-text {
+    color: var(--text-secondary);
+    font-size: 0.94rem;
+    margin: 0.15rem 0 1rem 0;
+}
+
+.step-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin: 0.75rem 0 1.5rem;
+}
+
+.step-card {
+    background: var(--bg-card);
+    border: 1px solid var(--gray-300);
+    border-radius: 14px;
+    padding: 0.8rem 0.95rem;
+    box-shadow: 0 6px 16px -10px rgba(51, 75, 97, 0.35);
+}
+
+.step-card strong {
+    display: block;
+    color: var(--blue-700);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.2rem;
+}
+
+.step-card span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.info-box {
+    background: linear-gradient(135deg, #f4fafc, #eef6fb);
+    border: 1px solid var(--gray-300);
+    border-radius: 14px;
+    padding: 0.8rem 1rem;
+    color: var(--gray-700);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.counter-chip {
+    display: inline-block;
+    background: #e8f1f8;
+    color: var(--blue-700);
+    border: 1px solid #c5d9ea;
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+}
+
+.module-shell {
+    background: var(--bg-card);
+    border: 1px solid var(--gray-300);
+    border-radius: 18px;
+    padding: 1rem 1rem 0.55rem;
+    box-shadow: 0 10px 20px -16px rgba(16, 39, 61, 0.42);
+    margin-bottom: 1rem;
+}
+
+.module-title {
+    margin: 0;
+    color: var(--blue-700);
+    font-size: 1.02rem;
+    font-weight: 700;
+}
+
+.module-subtitle {
+    margin: 0.25rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.sim-progress-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--gray-300);
+    border-radius: 16px;
+    padding: 0.75rem 0.9rem;
+    margin-bottom: 0.9rem;
+}
+
+.sim-progress-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--gray-700);
+    font-size: 0.83rem;
+    margin-bottom: 0.5rem;
+}
+
+.sim-progress-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: #e8eff5;
+    overflow: hidden;
+}
+
+.sim-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #34d399, #3b82f6);
+    transition: width 0.3s ease;
+}
+
+.action-hint {
+    margin: 0.2rem 0 0.85rem;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin: 0.2rem 0 1.2rem;
+}
+
+.status-card {
+    border-radius: 12px;
+    border: 1px solid var(--gray-300);
+    background: var(--bg-card);
+    padding: 0.65rem 0.8rem;
+}
+
+.status-card strong {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--gray-700);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.15rem;
+}
+
+.status-ok {
+    color: #166534;
+    font-weight: 700;
+}
+
+.status-wait {
+    color: #9a3412;
+    font-weight: 700;
+}
+
+.sim-badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+}
+
+.sim-badge-critico {
+    background: #fee2e2;
+    border: 1px solid #ef4444;
+    color: #991b1b;
+}
+
+.sim-badge-atencao {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+}
+
+.sim-badge-ok {
+    background: #dcfce7;
+    border: 1px solid #22c55e;
+    color: #166534;
+}
+
+/* MÉTRICAS */
 [data-testid="metric-container"] {
     background: var(--bg-card);
-    border: 1px solid var(--light-green-2);
+    border: 1px solid var(--gray-300);
     border-radius: 20px;
     padding: 1.75rem;
-    box-shadow: 0 10px 15px -3px rgba(99, 217, 140, 0.2);
+    box-shadow: 0 10px 18px -12px rgba(16, 39, 61, 0.35);
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -116,13 +299,13 @@ st.markdown("""
     left: 0;
     width: 4px;
     height: 100%;
-    background: linear-gradient(180deg, var(--lime-cream), var(--light-green));
+    background: linear-gradient(180deg, #34d399, #3b82f6);
 }
 
 [data-testid="metric-container"]:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 25px -5px rgba(99, 217, 140, 0.3);
-    border-color: var(--emerald);
+    box-shadow: 0 20px 25px -8px rgba(16, 39, 61, 0.28);
+    border-color: #9fc2de;
 }
 
 [data-testid="metric-container"] > div:first-child {
@@ -153,46 +336,77 @@ st.markdown("""
 
 [data-testid="stTextInput"] input:focus,
 [data-testid="stNumberInput"] input:focus {
-    border-color: var(--tropical-teal);
-    box-shadow: 0 0 0 4px rgba(52, 160, 164, 0.15);
+    border-color: var(--blue-600);
+    box-shadow: 0 0 0 4px rgba(45, 100, 143, 0.14);
 }
 
 label {
-    color: var(--text-secondary);
-    font-size: 0.8rem;
+    color: var(--gray-700);
+    font-size: 0.86rem;
     font-weight: 600;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
-/* BOTÕES EMERALD */
+/* BOTÕES */
 .stButton > button {
-    background: linear-gradient(135deg, var(--ocean-mist), var(--tropical-teal));
-    color: white;
-    border-radius: 16px;
+    background: #e8f1f8;
+    color: var(--blue-700);
+    border-radius: 14px;
     font-weight: 600;
-    padding: 1rem 1.75rem;
-    border: none;
-    box-shadow: 0 10px 15px -3px rgba(52, 160, 164, 0.4);
-    transition: all 0.3s ease;
+    padding: 0.8rem 1.2rem;
+    border: 1px solid #bfd4e6;
+    box-shadow: 0 8px 12px -8px rgba(31, 79, 122, 0.25);
+    transition: all 0.25s ease;
 }
 
 .stButton > button:hover {
-    background: linear-gradient(135deg, var(--bondi-blue), var(--cerulean));
+    background: #dbeaf5;
+    transform: translateY(-1px);
+}
+
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--blue-700), var(--blue-600));
+    color: #ffffff;
+    border-radius: 14px;
+    font-weight: 600;
+    padding: 0.9rem 1.35rem;
+    border: none;
+    box-shadow: 0 10px 15px -3px rgba(31, 79, 122, 0.35);
+    transition: all 0.25s ease;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background: linear-gradient(135deg, var(--blue-900), var(--blue-700));
     transform: translateY(-2px);
-    box-shadow: 0 20px 20px -5px rgba(52, 160, 164, 0.5);
+    box-shadow: 0 20px 20px -5px rgba(31, 79, 122, 0.35);
+}
+
+.stButton > button[kind="secondary"] {
+    background: #ffffff;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+    box-shadow: 0 8px 12px -8px rgba(194, 65, 12, 0.2);
+}
+
+.stButton > button[kind="secondary"]:hover {
+    background: #fff7ed;
 }
 
 .stDownloadButton > button {
-    background: linear-gradient(135deg, var(--lime-cream), var(--light-green));
-    color: var(--text-primary);
-    border: 2px solid var(--light-green-2);
+    background: linear-gradient(135deg, #dff3ea, #cdeee0);
+    color: #0f5132;
+    border: 2px solid #8fd6b9;
     border-radius: 16px;
     font-weight: 600;
 }
 
+.stDownloadButton > button * {
+    color: #0f5132 !important;
+}
+
 .stDownloadButton > button:hover {
-    background: linear-gradient(135deg, var(--light-green), var(--emerald));
+    background: linear-gradient(135deg, #cdeee0, #b8e7d3);
     transform: translateY(-1px);
 }
 
@@ -200,29 +414,48 @@ label {
 [data-testid="stDataFrame"] {
     border-radius: 20px;
     border: 1px solid var(--border);
-    box-shadow: 0 10px 15px -3px rgba(52, 160, 164, 0.15);
+    box-shadow: 0 10px 15px -3px rgba(31, 79, 122, 0.12);
 }
 
 /* RESULTADOS */
 .sim-result-ok {
-    background: linear-gradient(135deg, var(--light-green), var(--light-green-2));
-    border: 2px solid var(--emerald);
-    color: #1a533d;
+    background: linear-gradient(135deg, #def7ec, #c8efd9);
+    border: 2px solid var(--green-500);
+    color: #12503b;
     border-radius: 16px;
-    box-shadow: 0 10px 20px rgba(118, 200, 147, 0.3);
+    box-shadow: 0 10px 20px rgba(47, 158, 121, 0.2);
+    padding: 0.75rem 0.95rem;
+    font-weight: 600;
 }
 
 .sim-result-fail {
-    background: linear-gradient(135deg, #fee2e2, #fecaca);
-    border: 2px solid #f87171;
-    color: #991b1b;
+    background: linear-gradient(135deg, #fff1f1, #ffe2e2);
+    border: 2px solid #ea6c6c;
+    color: #8c1f1f;
     border-radius: 16px;
+    padding: 0.75rem 0.95rem;
+    font-weight: 600;
+}
+
+[data-baseweb="radio"] label,
+[data-testid="stAlertContentInfo"],
+[data-testid="stAlertContentWarning"],
+[data-testid="stAlertContentError"],
+[data-testid="stAlertContentSuccess"] {
+    color: var(--text-primary) !important;
+}
+
+[data-baseweb="select"] > div,
+[data-testid="stFileUploader"] section {
+    border-color: var(--gray-300) !important;
 }
 
 /* MOBILE */
 @media (max-width: 768px) {
     .block-container { padding: 1.5rem 1rem 3rem; }
     .app-header { padding: 2rem 1.5rem 1.5rem; margin-bottom: 2rem; }
+    .step-grid { grid-template-columns: 1fr; }
+    .status-grid { grid-template-columns: 1fr; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -238,6 +471,36 @@ if "df" not in st.session_state:
     st.session_state.df = None
 if "df_res" not in st.session_state:
     st.session_state.df_res = None
+if "run_analysis_requested" not in st.session_state:
+    st.session_state.run_analysis_requested = False
+if "active_step" not in st.session_state:
+    st.session_state.active_step = "1. Entrada"
+if "pending_step" not in st.session_state:
+    st.session_state.pending_step = None
+if "sim_clear_requested" not in st.session_state:
+    st.session_state.sim_clear_requested = False
+if "sim_persist_modo" not in st.session_state:
+    st.session_state.sim_persist_modo = "Valor médio"
+if "sim_persist_inc" not in st.session_state:
+    st.session_state.sim_persist_inc = 0
+if "sim_persist_c100" not in st.session_state:
+    st.session_state.sim_persist_c100 = 0
+if "sim_persist_exc" not in st.session_state:
+    st.session_state.sim_persist_exc = 0
+if "sim_persist_c200" not in st.session_state:
+    st.session_state.sim_persist_c200 = 0
+if "sim_persist_c300" not in st.session_state:
+    st.session_state.sim_persist_c300 = 0
+if "sim_persist_inc_medio" not in st.session_state:
+    st.session_state.sim_persist_inc_medio = 150.0
+if "sim_persist_c100_medio" not in st.session_state:
+    st.session_state.sim_persist_c100_medio = 120.0
+if "sim_persist_exc_medio" not in st.session_state:
+    st.session_state.sim_persist_exc_medio = 100.0
+if "sim_persist_c200_medio" not in st.session_state:
+    st.session_state.sim_persist_c200_medio = 100.0
+if "sim_persist_c300_medio" not in st.session_state:
+    st.session_state.sim_persist_c300_medio = 30.0
 
 # =========================
 # CURVA EQTL
@@ -268,87 +531,235 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# =========================
-# ENTRADA
-# =========================
-st.markdown('<p class="section-label">INPUT DOS DADOS</p>', unsafe_allow_html=True)
-modo = st.radio("Modo de entrada", ["Upload de Excel", "Manual"],
-                horizontal=True)
-
-# =========================
-# UPLOAD
-# =========================
-if modo == "Upload de Excel":
-
-    st.markdown("""
-    <div class="info-box">
-        <strong>Colunas esperadas</strong>
-        INSTALACAO &nbsp;·&nbsp; REQUERIDA &nbsp;·&nbsp; INJETADA &nbsp;·&nbsp;
-        REVERSA &nbsp;·&nbsp; CONSUMO &nbsp;·&nbsp; ILUMINACAO_PUBLICA
+st.markdown("""
+<div class="step-grid">
+    <div class="step-card">
+        <strong>Passo 1</strong>
+        <span>Escolha o modo de entrada: planilha ou manual.</span>
     </div>
-    """, unsafe_allow_html=True)
+    <div class="step-card">
+        <strong>Passo 2</strong>
+        <span>Carregue os dados e rode a análise.</span>
+    </div>
+    <div class="step-card">
+        <strong>Passo 3</strong>
+        <span>Veja ranking, exporte e simule ações.</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-    file = st.file_uploader("Arquivo Excel (.xlsx)", type=["xlsx"])
+def validar_dataframe(df_base):
+    colunas_esperadas = {
+        "INSTALACAO", "REQUERIDA", "INJETADA",
+        "REVERSA", "CONSUMO", "ILUMINACAO_PUBLICA"
+    }
+    faltantes = colunas_esperadas - set(df_base.columns)
+    if faltantes:
+        return False, f"Faltam colunas obrigatórias: {', '.join(sorted(faltantes))}"
 
-    if file:
-        st.session_state.df = pd.read_excel(file)
-        st.session_state.df_res = None
+    df_val = df_base.copy()
+    colunas_numericas = ["REQUERIDA", "INJETADA", "REVERSA", "CONSUMO", "ILUMINACAO_PUBLICA"]
+    for col in colunas_numericas:
+        df_val[col] = pd.to_numeric(df_val[col], errors="coerce")
+        if df_val[col].isna().any():
+            return False, f"A coluna {col} possui valores inválidos."
+        if (df_val[col] < 0).any():
+            return False, f"A coluna {col} não pode ter valores negativos."
 
-# =========================
-# MANUAL
-# =========================
-elif modo == "Manual":
+    if df_val["INSTALACAO"].astype(str).str.strip().eq("").any():
+        return False, "A coluna INSTALACAO possui valores vazios."
 
-    st.markdown('<p class="section-label">Nova instalação</p>', unsafe_allow_html=True)
+    if df_val["INSTALACAO"].astype(str).duplicated().any():
+        return False, "Existem instalações duplicadas."
 
-    col1, col2 = st.columns(2)
+    return True, "ok"
 
-    with col1:
-        inst       = st.text_input("Instalação MF", placeholder = "Campo Necessário")
-        requerida  = st.number_input("Requerida",  step = 500.0, key="in_req")
-        injetada   = st.number_input("Injetada",   step = 500.0, key="in_inj")
 
-    with col2:
-        reversa    = st.number_input("Reversa",   step =    500.0, key="in_rev")
-        consumo    = st.number_input("Consumo",   step =    500.0, key="in_con")
-        iluminacao = st.number_input("Iluminação Pública",  step = 500.0, key="in_ilu")
+entrada_ok = st.session_state.df is not None or not st.session_state.df_manual.empty
+analise_ok = st.session_state.df_res is not None
 
-    col_add, col_clear = st.columns(2)
+st.markdown(
+    f"""
+    <div class="status-grid">
+        <div class="status-card">
+            <strong>Etapa 1</strong>
+            <span class="{'status-ok' if entrada_ok else 'status-wait'}">{'Entrada concluída' if entrada_ok else 'Aguardando entrada'}</span>
+        </div>
+        <div class="status-card">
+            <strong>Etapa 2</strong>
+            <span class="{'status-ok' if analise_ok else 'status-wait'}">{'Análise concluída' if analise_ok else 'Aguardando análise'}</span>
+        </div>
+        <div class="status-card">
+            <strong>Etapa 3</strong>
+            <span class="{'status-ok' if analise_ok else 'status-wait'}">{'Simulação disponível' if analise_ok else 'Bloqueada até análise'}</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-    with col_add:
-        if st.button("Adicionar"):
-            if inst:
+if st.session_state.pending_step is not None:
+    st.session_state.active_step = st.session_state.pending_step
+    st.session_state.pending_step = None
+
+selected_step = st.radio(
+    "Navegação por etapa",
+    ["1. Entrada", "2. Resultados", "3. Simulação"],
+    horizontal=True,
+    key="active_step"
+)
+
+if selected_step == "1. Entrada":
+    st.markdown('<p class="section-label">INPUT DOS DADOS</p>', unsafe_allow_html=True)
+    st.markdown('<p class="helper-text">Escolha abaixo como deseja inserir os dados para cálculo.</p>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="module-shell">
+            <p class="module-title">Módulo de Entrada</p>
+            <p class="module-subtitle">Defina o modo de coleta e preencha os dados operacionais.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    modo = st.radio("Modo de entrada", ["Upload de Excel", "Manual"], horizontal=True)
+
+    if modo == "Upload de Excel":
+        st.markdown("""
+        <div class="info-box">
+            <strong>Colunas esperadas</strong>
+            INSTALACAO &nbsp;·&nbsp; REQUERIDA &nbsp;·&nbsp; INJETADA &nbsp;·&nbsp;
+            REVERSA &nbsp;·&nbsp; CONSUMO &nbsp;·&nbsp; ILUMINACAO_PUBLICA
+        </div>
+        """, unsafe_allow_html=True)
+
+        file = st.file_uploader("Arquivo Excel (.xlsx)", type=["xlsx"])
+        if file:
+            df_upload = pd.read_excel(file)
+            df_upload.columns = df_upload.columns.str.strip().str.upper()
+            ok, msg = validar_dataframe(df_upload)
+
+            if not ok:
+                st.error(msg)
+                st.session_state.df = None
+                st.session_state.df_res = None
+                st.session_state.run_analysis_requested = False
+            else:
+                st.success(f"Arquivo carregado com sucesso. Registros encontrados: {len(df_upload)}")
+                st.session_state.df = df_upload
+                st.session_state.df_res = None
+                with st.expander("Pré-visualizar dados carregados"):
+                    st.dataframe(df_upload.head(10), use_container_width=True)
+
+                if st.button("Rodar análise", key="btn_rodar_upload", use_container_width=True, type="primary"):
+                    st.session_state.run_analysis_requested = True
+                    st.rerun()
+
+    else:
+        st.markdown('<p class="section-label">Nova instalação</p>', unsafe_allow_html=True)
+        st.markdown('<p class="helper-text">Preencha os campos e clique em adicionar para montar sua base.</p>', unsafe_allow_html=True)
+
+        st.markdown(
+            f'<span class="counter-chip">Instalações inseridas: {len(st.session_state.df_manual)}</span>',
+            unsafe_allow_html=True
+        )
+
+        with st.form("form_nova_instalacao", clear_on_submit=False):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                inst = st.text_input("Instalação MF", placeholder="Ex: 123456789")
+                requerida = st.number_input("Requerida", min_value=0.0, step=500.0, key="in_req")
+                injetada = st.number_input("Injetada", min_value=0.0, step=500.0, key="in_inj")
+
+            with col2:
+                reversa = st.number_input("Reversa", min_value=0.0, step=500.0, key="in_rev")
+                consumo = st.number_input("Consumo", min_value=0.0, step=500.0, key="in_con")
+                iluminacao = st.number_input("Iluminação Pública", min_value=0.0, step=500.0, key="in_ilu")
+
+            col_add, col_clear = st.columns(2)
+            with col_add:
+                adicionar = st.form_submit_button("Adicionar instalação")
+            with col_clear:
+                limpar = st.form_submit_button("Limpar tudo")
+
+        if adicionar:
+            inst_txt = str(inst).strip()
+            if not inst_txt:
+                st.warning("Informe a instalação antes de adicionar.")
+            elif not st.session_state.df_manual.empty and inst_txt in st.session_state.df_manual["INSTALACAO"].astype(str).values:
+                st.warning("Esta instalação já existe na lista manual.")
+            else:
                 nova = pd.DataFrame([{
-                    "INSTALACAO":       inst,
-                    "REQUERIDA":        requerida,
-                    "INJETADA":         injetada,
-                    "REVERSA":          reversa,
-                    "CONSUMO":          consumo,
+                    "INSTALACAO": inst_txt,
+                    "REQUERIDA": requerida,
+                    "INJETADA": injetada,
+                    "REVERSA": reversa,
+                    "CONSUMO": consumo,
                     "ILUMINACAO_PUBLICA": iluminacao
                 }])
-                st.session_state.df_manual = pd.concat(
-                    [st.session_state.df_manual, nova], ignore_index=True
-                )
+                st.session_state.df_manual = pd.concat([st.session_state.df_manual, nova], ignore_index=True)
                 st.session_state.df_res = None
+                st.success("Instalação adicionada à lista.")
 
-    with col_clear:
-        if st.button("Limpar tudo"):
+        if limpar:
             st.session_state.df_manual = st.session_state.df_manual.iloc[0:0]
             st.session_state.df = None
             st.session_state.df_res = None
+            st.session_state.run_analysis_requested = False
+            st.info("Lista manual limpa.")
 
-    if not st.session_state.df_manual.empty:
-        st.markdown('<p class="section-label">Instalações inseridas</p>', unsafe_allow_html=True)
-        st.dataframe(st.session_state.df_manual, use_container_width=True)
+        if not st.session_state.df_manual.empty:
+            st.markdown('<p class="section-label">Instalações inseridas</p>', unsafe_allow_html=True)
 
-        if st.button("Rodar Análise"):
-            st.session_state.df = st.session_state.df_manual.copy()
-            st.session_state.df_res = None
+            editor_df = st.data_editor(
+                st.session_state.df_manual,
+                use_container_width=True,
+                hide_index=True,
+                num_rows="fixed",
+                key="manual_editor"
+            )
+
+            editor_df.columns = editor_df.columns.str.strip().str.upper()
+
+            st.markdown('<p class="helper-text">Gerencie a base manual e rode a análise.</p>', unsafe_allow_html=True)
+
+            opcoes_inst = editor_df["INSTALACAO"].astype(str).tolist()
+            centro_esq, centro, centro_dir = st.columns([1, 1.8, 1])
+            with centro:
+                inst_remover = st.selectbox("Remover instalação", opcoes_inst, key="inst_remover")
+
+            b_remove, b_run = st.columns(2)
+
+            with b_remove:
+                if st.button("Remover selecionada", key="btn_remover", use_container_width=True, type="secondary"):
+                    st.session_state.df_manual = editor_df[
+                        editor_df["INSTALACAO"].astype(str) != str(inst_remover)
+                    ].reset_index(drop=True)
+                    st.session_state.df_res = None
+                    st.session_state.run_analysis_requested = False
+                    st.success("Instalação removida.")
+
+            with b_run:
+                if st.button("Rodar análise", key="btn_rodar_manual", use_container_width=True, type="primary"):
+                    base_manual = editor_df.copy()
+                    ok, msg = validar_dataframe(base_manual)
+                    if ok:
+                        st.session_state.df_manual = base_manual
+                        st.session_state.df = base_manual.copy()
+                        st.session_state.df_res = None
+                        st.session_state.run_analysis_requested = True
+                        st.rerun()
+                    else:
+                        st.error(msg)
 
 # =========================
 # PROCESSAMENTO
 # =========================
-if st.session_state.df is not None and st.session_state.df_res is None:
+if (
+    st.session_state.df is not None
+    and st.session_state.df_res is None
+    and st.session_state.run_analysis_requested
+):
 
     df = st.session_state.df.copy()
     df.columns = df.columns.str.strip().str.upper()
@@ -407,6 +818,9 @@ if st.session_state.df is not None and st.session_state.df_res is None:
         })
 
     st.session_state.df_res = pd.DataFrame(resultados)
+    st.session_state.run_analysis_requested = False
+    st.session_state.pending_step = "2. Resultados"
+    st.rerun()
 
 # =========================
 # GANHOS PADRÃO (BASE)
@@ -419,141 +833,233 @@ ganho_c300 = 30.0
 
 
 # =========================
-# DASHBOARD + SIMULADOR
+# RESULTADOS
 # =========================
-if st.session_state.df_res is not None:
-
-    df_res = st.session_state.df_res
-    df     = st.session_state.df
-
-    # Métricas
-    st.markdown('<p class="section-label">Visão Geral</p>', unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Instalações",   len(df_res))
-    
-
-    st.markdown("---")
-
-    # Ranking
-    st.markdown('<p class="section-label">Ranking por Perda</p>', unsafe_allow_html=True)
-    st.dataframe(
-        df_res.sort_values("PERDA_%", ascending=False),
-        use_container_width=True
-    )
-
-    # Download
-    st.markdown('<p class="section-label">Exportar</p>', unsafe_allow_html=True)
-    st.download_button(
-        "Baixar resultado (.csv)",
-        df_res.to_csv(index=False),
-        "resultado.csv",
-        mime="text/csv"
-    )
-
-    st.markdown("---")
-
-        # =========================
-    # Simulador
-    # =========================
-    st.markdown('<p class="section-label">Simulação de Ações</p>', unsafe_allow_html=True)
-    
-    inst_sel = st.selectbox("Instalação", df_res["INSTALACAO"])
-    
-    base  = df[df["INSTALACAO"] == inst_sel].iloc[0]
-    perda = (
-        base["REQUERIDA"] + base["INJETADA"]
-        - base["REVERSA"] - base["CONSUMO"]
-        - base["ILUMINACAO_PUBLICA"]
-    )
-    
-    meta = perda - df_res[df_res["INSTALACAO"] == inst_sel]["RED_NECESSÁRIA"].iloc[0]
-    
-    # =========================
-    # MODO DE GANHO
-    # =========================
-    modo_ganho = st.radio(
-        "Modo de cálculo do ganho",
-        ["Valor médio", "Customizar individualmente"],
-        horizontal=True
-    )
-    
-    # =========================
-    # FUNÇÃO AUXILIAR
-    # =========================
-    def calcular_ganho(qtd, valor_padrao, prefixo):
-        if qtd == 0:
-            return 0
-    
-        # MODO MÉDIO
-        if modo_ganho == "Valor médio":
-            valor = st.number_input(
-                f"{prefixo} (kWh por ação)",
-                min_value=0.0,
-                value=float(valor_padrao),
-                key=f"{prefixo}_medio"
-            )
-            return qtd * valor
-    
-        # MODO CUSTOMIZADO
-        else:
-            ganhos = []
-            with st.expander(f"Detalhar {prefixo}"):
-                for i in range(qtd):
-                    val = st.number_input(
-                        f"{prefixo} #{i+1} (kWh)",
-                        min_value=0.0,
-                        value=float(valor_padrao),
-                        key=f"{prefixo}_{i}",
-                        step = 20.0
-                    )
-                    ganhos.append(val)
-            return sum(ganhos)
-    
-    # =========================
-    # INPUT DE AÇÕES
-    # =========================
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        inc  = st.number_input("Inclusões",  0, key="sim_inc")
-        c100 = st.number_input("Cod 100",    0, key="sim_c100")
-        c200 = st.number_input("Cod 200",    0, key="sim_c200")
-    
-    with col2:
-        exc  = st.number_input("Exclusões",  0, key="sim_exc")
-        c300 = st.number_input("Cod 300",    0, key="sim_c300")
-    
-    # =========================
-    # GANHO DINÂMICO
-    # (usa valores padrão já definidos no app)
-    # =========================
-    ganho_total = (
-        calcular_ganho(inc,  ganho_inc,  "Inclusões") +
-        calcular_ganho(c100, ganho_c100, "Cod 100") -
-        calcular_ganho(exc, ganho_exc,  "Exclusões") +
-        calcular_ganho(c200, ganho_c200, "Cod 200") +
-        calcular_ganho(c300, ganho_c300, "Cod 300")
-    )
-    
-    perda_proj = perda - ganho_total
-    
-    # =========================
-    # RESULTADO
-    # =========================
-    st.markdown('<p class="section-label">Resultado projetado</p>', unsafe_allow_html=True)
-    
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Ganho",       f"{ganho_total:.2f}")
-    r2.metric("Perda Atual", f"{perda_proj:.2f}")
-    r3.metric("Meta",        f"{meta:.2f}")
-    
-    if perda_proj <= meta:
-        st.markdown('<div class="sim-result-ok">Meta atingida</div>', unsafe_allow_html=True)
+if selected_step == "2. Resultados":
+    if st.session_state.df_res is None:
+        st.info("A etapa de resultados será habilitada após rodar a análise na aba Entrada.")
     else:
+        df_res = st.session_state.df_res
+
+        st.markdown('<p class="section-label">Visão Geral</p>', unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Instalações", len(df_res))
+        c2.metric("Perda média (%)", f"{df_res['PERDA_%'].mean():.2f}")
+        c3.metric("Perda total (kWh)", f"{df_res['PERDA_(kWh)'].sum():,.2f}")
+
+        st.markdown("---")
+        st.markdown('<p class="section-label">Ranking por Perda</p>', unsafe_allow_html=True)
+        st.markdown('<p class="helper-text">Instalações com maior % de perda aparecem no topo para priorização.</p>', unsafe_allow_html=True)
+        st.dataframe(df_res.sort_values("PERDA_%", ascending=False), use_container_width=True)
+
+        st.markdown('<p class="section-label">Exportar</p>', unsafe_allow_html=True)
+        st.download_button(
+            "Baixar resultado (.csv)",
+            df_res.to_csv(index=False),
+            "resultado.csv",
+            mime="text/csv"
+        )
+
+# =========================
+# SIMULAÇÃO
+# =========================
+if selected_step == "3. Simulação":
+    if st.session_state.df_res is None:
+        st.warning("A simulação fica disponível após a conclusão da análise na aba Resultados.")
+    else:
+        df_res = st.session_state.df_res
+        df = st.session_state.df
+
+        st.markdown('<p class="section-label">Simulação de Ações</p>', unsafe_allow_html=True)
+        st.markdown('<p class="helper-text">Escolha uma instalação e simule o impacto das ações no atingimento da meta.</p>', unsafe_allow_html=True)
+
         st.markdown(
-            f'<div class="sim-result-fail">Faltam {perda_proj - meta:.2f} kWh para atingir a meta</div>',
+            """
+            <div class="module-shell">
+                <p class="module-title">Módulo de Simulação</p>
+                <p class="module-subtitle">Ajuste as ações e acompanhe em tempo real o progresso para a meta.</p>
+            </div>
+            """,
             unsafe_allow_html=True
         )
-else:
-    st.info("Selecione um modo de entrada e insira os dados para iniciar a análise.")
+
+        inst_sel = st.selectbox("Instalação", df_res["INSTALACAO"])
+        base = df[df["INSTALACAO"] == inst_sel].iloc[0]
+
+        perda = (
+            base["REQUERIDA"] + base["INJETADA"]
+            - base["REVERSA"] - base["CONSUMO"]
+            - base["ILUMINACAO_PUBLICA"]
+        )
+        meta = perda - df_res[df_res["INSTALACAO"] == inst_sel]["RED_NECESSÁRIA"].iloc[0]
+
+        modo_ganho = st.radio(
+            "Modo de cálculo do ganho",
+            ["Valor médio", "Customizar individualmente"],
+            horizontal=True,
+            key="sim_modo_ganho",
+            index=0 if st.session_state.sim_persist_modo == "Valor médio" else 1
+        )
+        st.session_state.sim_persist_modo = modo_ganho
+
+        def calcular_ganho(qtd, valor_padrao, acao_key, rotulo):
+            if qtd == 0:
+                return 0
+
+            if modo_ganho == "Valor médio":
+                valor_inicial = float(st.session_state.get(f"sim_persist_{acao_key}_medio", valor_padrao))
+                valor = st.number_input(
+                    f"{rotulo} (kWh por ação)",
+                    min_value=0.0,
+                    value=valor_inicial,
+                    key=f"sim_{acao_key}_medio"
+                )
+                st.session_state[f"sim_persist_{acao_key}_medio"] = float(valor)
+                return qtd * valor
+            ganhos = []
+            with st.expander(f"Detalhar {rotulo}"):
+                for i in range(qtd):
+                    persist_key = f"sim_persist_{acao_key}_{i}"
+                    valor_inicial = float(st.session_state.get(persist_key, valor_padrao))
+                    val = st.number_input(
+                        f"{rotulo} #{i+1} (kWh)",
+                        min_value=0.0,
+                        value=valor_inicial,
+                        key=f"sim_{acao_key}_{i}",
+                        step=20.0
+                    )
+                    st.session_state[persist_key] = float(val)
+                    ganhos.append(val)
+            return sum(ganhos)
+
+        def limpar_codigos_simulacao():
+            st.session_state["sim_inc"] = 0
+            st.session_state["sim_c100"] = 0
+            st.session_state["sim_exc"] = 0
+            st.session_state["sim_c200"] = 0
+            st.session_state["sim_c300"] = 0
+            st.session_state["sim_persist_inc"] = 0
+            st.session_state["sim_persist_c100"] = 0
+            st.session_state["sim_persist_exc"] = 0
+            st.session_state["sim_persist_c200"] = 0
+            st.session_state["sim_persist_c300"] = 0
+            st.session_state["sim_persist_modo"] = "Valor médio"
+
+            padroes = {
+                "inc": ganho_inc,
+                "c100": ganho_c100,
+                "exc": ganho_exc,
+                "c200": ganho_c200,
+                "c300": ganho_c300,
+            }
+            for acao_key, valor_padrao in padroes.items():
+                st.session_state[f"sim_{acao_key}_medio"] = float(valor_padrao)
+                st.session_state[f"sim_persist_{acao_key}_medio"] = float(valor_padrao)
+
+            for key in list(st.session_state.keys()):
+                if key.startswith("sim_inc_") and key != "sim_inc_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_c100_") and key != "sim_c100_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_exc_") and key != "sim_exc_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_c200_") and key != "sim_c200_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_c300_") and key != "sim_c300_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_persist_inc_") and key != "sim_persist_inc_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_persist_c100_") and key != "sim_persist_c100_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_persist_exc_") and key != "sim_persist_exc_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_persist_c200_") and key != "sim_persist_c200_medio":
+                    del st.session_state[key]
+                if key.startswith("sim_persist_c300_") and key != "sim_persist_c300_medio":
+                    del st.session_state[key]
+
+        if st.session_state.sim_clear_requested:
+            limpar_codigos_simulacao()
+            st.session_state.sim_clear_requested = False
+
+        st.markdown('<p class="action-hint">Informe a quantidade de ações planejadas em cada categoria.</p>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            inc = st.number_input("Inclusões", min_value=0, value=int(st.session_state.sim_persist_inc), key="sim_inc")
+            c100 = st.number_input("Cod 100", min_value=0, value=int(st.session_state.sim_persist_c100), key="sim_c100")
+            c200 = st.number_input("Cod 200", min_value=0, value=int(st.session_state.sim_persist_c200), key="sim_c200")
+        with col2:
+            exc = st.number_input("Exclusões", min_value=0, value=int(st.session_state.sim_persist_exc), key="sim_exc")
+            c300 = st.number_input("Cod 300", min_value=0, value=int(st.session_state.sim_persist_c300), key="sim_c300")
+
+        st.session_state.sim_persist_inc = int(inc)
+        st.session_state.sim_persist_c100 = int(c100)
+        st.session_state.sim_persist_c200 = int(c200)
+        st.session_state.sim_persist_exc = int(exc)
+        st.session_state.sim_persist_c300 = int(c300)
+
+        if st.button("Limpar códigos", key="btn_limpar_codigos", type="secondary"):
+            st.session_state.sim_clear_requested = True
+            st.rerun()
+
+        ganho_total = (
+            calcular_ganho(inc, ganho_inc, "inc", "Inclusões") +
+            calcular_ganho(c100, ganho_c100, "c100", "Cod 100") -
+            calcular_ganho(exc, ganho_exc, "exc", "Exclusões") +
+            calcular_ganho(c200, ganho_c200, "c200", "Cod 200") +
+            calcular_ganho(c300, ganho_c300, "c300", "Cod 300")
+        )
+
+        perda_proj = perda - ganho_total
+        reducao_necessaria = max(0.0, perda - meta)
+        reducao_obtida = max(0.0, perda - perda_proj)
+        if reducao_necessaria == 0:
+            atingimento = 100.0
+        else:
+            atingimento = max(0.0, min(100.0, (reducao_obtida / reducao_necessaria) * 100))
+
+        if atingimento < 60:
+            classe_badge = "sim-badge sim-badge-critico"
+            texto_badge = "Crítico"
+            cor_barra = "#ef4444"
+        elif atingimento < 90:
+            classe_badge = "sim-badge sim-badge-atencao"
+            texto_badge = "Atenção"
+            cor_barra = "#f59e0b"
+        else:
+            classe_badge = "sim-badge sim-badge-ok"
+            texto_badge = "Meta próxima/atingida"
+            cor_barra = "#22c55e"
+
+        st.markdown(f'<div class="{classe_badge}">Status da simulação: {texto_badge}</div>', unsafe_allow_html=True)
+
+        st.markdown(
+            f"""
+            <div class="sim-progress-wrap">
+                <div class="sim-progress-head">
+                    <span>Progresso para meta da instalação selecionada</span>
+                    <strong>{atingimento:.1f}%</strong>
+                </div>
+                <div class="sim-progress-track">
+                    <div class="sim-progress-fill" style="width:{atingimento:.1f}%; background:{cor_barra};"></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.markdown('<p class="section-label">Resultado projetado</p>', unsafe_allow_html=True)
+        r1, r2, r3 = st.columns(3)
+        r1.metric("Ganho", f"{ganho_total:.2f}")
+        r2.metric("Perda Projetada", f"{perda_proj:.2f}")
+        r3.metric("Meta", f"{meta:.2f}")
+
+        if perda_proj <= meta:
+            st.markdown('<div class="sim-result-ok">Meta atingida</div>', unsafe_allow_html=True)
+        else:
+            falta = perda_proj - meta
+            st.markdown(
+                f'<div class="sim-result-fail">Faltam {falta:.2f} kWh para atingir a meta</div>',
+                unsafe_allow_html=True
+            )
+
