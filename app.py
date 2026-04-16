@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import math
+import re
+import io
+from pypdf import PdfReader
 
 st.set_page_config(
     page_title="Calculadora de Recuperação de Energia",
@@ -575,6 +578,217 @@ def validar_dataframe(df_base):
     return True, "ok"
 
 
+def _to_float_br(valor_txt):
+    txt = re.sub(r"[^\d,\.\-]", "", str(valor_txt).strip())
+    if not txt:
+        return None
+
+    # Regras para lidar com formatos mistos de milhar/decimal vindos do PDF.
+    if "," in txt and "." in txt:
+        if txt.rfind(",") > txt.rfind("."):
+            # Ex.: 1.234,56
+            txt = txt.replace(".", "").replace(",", ".")
+        else:
+            # Ex.: 1,234.56
+            txt = txt.replace(",", "")
+    elif "," in txt:
+        if re.fullmatch(r"-?\d{1,3}(,\d{3})+", txt) or re.fullmatch(r"-?\d+,\d{3}", txt):
+            # Ex.: 50,065 -> 50065
+            txt = txt.replace(",", "")
+        elif re.fullmatch(r"-?\d+,\d{1,2}", txt):
+            # Ex.: 123,45 -> 123.45
+            txt = txt.replace(",", ".")
+        else:
+            txt = txt.replace(",", "")
+    elif "." in txt:
+        if re.fullmatch(r"-?\d{1,3}(\.\d{3})+", txt) or re.fullmatch(r"-?\d+\.\d{3}", txt):
+            # Ex.: 50.065 -> 50065
+            txt = txt.replace(".", "")
+    try:
+        return float(txt)
+    except ValueError:
+        return None
+
+
+def _extrair_serie_metricas(texto_norm, label, proximos_labels):
+    idx = texto_norm.find(label)
+    if idx == -1:
+        return []
+
+    trecho = texto_norm[idx: idx + 450]
+    if ":" in trecho:
+        trecho = trecho.split(":", 1)[1]
+
+    fim = len(trecho)
+    for prox in proximos_labels:
+        pos = trecho.find(prox)
+        if pos != -1:
+            fim = min(fim, pos)
+    trecho = trecho[:fim]
+
+    nums = re.findall(r"\d{1,3}(?:\.\d{3})*(?:,\d+)?", trecho)
+    serie = []
+    for n in nums:
+        val = _to_float_br(n)
+        if val is not None:
+            serie.append(val)
+    return serie
+
+
+def _extrair_instalacao_fiscal(texto_norm):
+    # 1) Caso direto: label seguido de número.
+    padroes_diretos = [
+        r"Instala[çc][aã]o\s*Fiscal\s*:?\s*(\d{8,12})",
+        r"Inst\.?\s*Fiscal\s*:?\s*(\d{8,12})",
+    ]
+    for padrao in padroes_diretos:
+        m = re.search(padrao, texto_norm, flags=re.IGNORECASE)
+        if m:
+            return m.group(1)
+
+    # 2) Caso com label e valor separado por outros textos.
+    ancora_ini = re.search(r"Instala[çc][aã]o\s*Fiscal", texto_norm, flags=re.IGNORECASE)
+    ancora_fim = re.search(r"Energia\s*Reversa|Consumo\s*Clientes", texto_norm, flags=re.IGNORECASE)
+    if ancora_ini:
+        ini = ancora_ini.start()
+        fim = ancora_fim.start() if (ancora_fim and ancora_fim.start() > ini) else min(len(texto_norm), ini + 900)
+        trecho = texto_norm[ini:fim]
+        m = re.search(r"\b\d{10}\b", trecho)
+        if m:
+            return m.group(0)
+        m = re.search(r"\b\d{8,12}\b", trecho)
+        if m:
+            return m.group(0)
+
+    # 3) Fallback: procura no bloco inicial por padrão de instalação (10 dígitos).
+    bloco_inicial = texto_norm[:2500]
+    candidatos_10 = re.findall(r"\b\d{10}\b", bloco_inicial)
+    if candidatos_10:
+        return candidatos_10[0]
+
+    # 4) Último fallback: qualquer id de 8 a 12 dígitos no início.
+    candidatos = re.findall(r"\b\d{8,12}\b", bloco_inicial)
+    if candidatos:
+        return candidatos[0]
+
+    return ""
+
+
+def extrair_dados_pdf(pdf_bytes):
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        texto = " ".join([(pg.extract_text() or "") for pg in reader.pages[:4]])
+    except Exception as exc:
+        return {"ok": False, "erro": f"Falha ao ler PDF: {exc}"}
+
+    texto_norm = re.sub(r"\s+", " ", texto)
+
+    refs = []
+    bloco_refs = ""
+    m_ini = re.search(r"Situa[çc][aã]o Inicial", texto_norm, flags=re.IGNORECASE)
+    m_fim = re.search(r"Instala[çc][aã]o Fiscal", texto_norm, flags=re.IGNORECASE)
+    if m_ini and m_fim and m_fim.start() > m_ini.start():
+        bloco_refs = texto_norm[m_ini.start():m_fim.start()]
+    else:
+        bloco_refs = texto_norm[:1200]
+
+    # Captura mês/ano aceitando quebra no ano (ex.: Feb/20 26) e também Média.
+    refs_detectadas = []
+    for mes, ano in re.findall(r"\b([A-Za-z]{3,4})\s*/\s*(\d{2}\s*\d{2}|\d{2,4})\b", bloco_refs, flags=re.IGNORECASE):
+        ano_limpo = re.sub(r"\s+", "", ano)
+        if len(ano_limpo) == 2:
+            ano_limpo = f"20{ano_limpo}"
+        ref = f"{mes.title()}/{ano_limpo}"
+        if ref not in refs_detectadas:
+            refs_detectadas.append(ref)
+    if re.search(r"M[eé]dia", bloco_refs, flags=re.IGNORECASE):
+        refs_detectadas.append("Média")
+
+    labels = [
+        "Requerida Trafo (kWh)",
+        "Injetada GDIS (kWh)",
+        "Energia Reversa (kWh)",
+        "Consumo Clientes (kWh)",
+        "IP Estimada (kWh)",
+    ]
+
+    metricas = {
+        "REQUERIDA": _extrair_serie_metricas(texto_norm, labels[0], labels[1:]),
+        "INJETADA": _extrair_serie_metricas(texto_norm, labels[1], labels[2:]),
+        "REVERSA": _extrair_serie_metricas(texto_norm, labels[2], labels[3:]),
+        "CONSUMO": _extrair_serie_metricas(texto_norm, labels[3], labels[4:]),
+        "ILUMINACAO_PUBLICA": _extrair_serie_metricas(texto_norm, labels[4], ["Referência", "Perda (KWh)"]),
+    }
+
+    # Define a base real de colunas e força padrão do PDF: 3 meses + Média (quando disponível).
+    tamanhos_validos = [len(v) for v in metricas.values() if v]
+    alvo = min(tamanhos_validos) if tamanhos_validos else 0
+    if alvo >= 4:
+        alvo = 4
+
+    meses_detectados = [r for r in refs_detectadas if r != "Média"]
+    refs = []
+    if alvo > 0:
+        meses_necessarios = max(0, alvo - 1)
+        refs.extend(meses_detectados[:meses_necessarios])
+        while len(refs) < meses_necessarios:
+            refs.append(f"Mês {len(refs) + 1}")
+        refs.append("Média")
+
+    # Evita números extras que podem aparecer após o bloco principal do resumo.
+    for campo in metricas:
+        if len(metricas[campo]) >= alvo:
+            metricas[campo] = metricas[campo][:alvo]
+
+    instalacao = _extrair_instalacao_fiscal(texto_norm)
+
+    if not instalacao:
+        return {"ok": False, "erro": "Não foi possível identificar a Instalação Fiscal no PDF."}
+
+    if not all(metricas[chave] for chave in metricas):
+        return {"ok": False, "erro": "Não foi possível extrair todas as séries necessárias do PDF."}
+
+    if not refs:
+        tam_max = max(len(v) for v in metricas.values())
+        if tam_max >= 4:
+            refs = ["Mês 1", "Mês 2", "Mês 3", "Média"]
+        elif tam_max > 1:
+            refs = [f"Mês {i+1}" for i in range(tam_max - 1)] + ["Média"]
+        else:
+            refs = ["Média"]
+
+    return {
+        "ok": True,
+        "instalacao": instalacao,
+        "refs": refs,
+        "metricas": metricas,
+    }
+
+
+def montar_df_a_partir_pdf(pdf_info, referencia_escolhida):
+    refs = pdf_info["refs"]
+    metricas = pdf_info["metricas"]
+
+    if referencia_escolhida in refs:
+        idx = refs.index(referencia_escolhida)
+    else:
+        idx = len(refs) - 1
+
+    linha = {"INSTALACAO": str(pdf_info["instalacao"]).strip()}
+    for campo, serie in metricas.items():
+        if not serie:
+            linha[campo] = 0.0
+        elif idx < len(serie):
+            linha[campo] = float(serie[idx])
+        else:
+            linha[campo] = float(serie[-1])
+
+    df_pdf = pd.DataFrame([linha])
+    for col in ["REQUERIDA", "INJETADA", "REVERSA", "CONSUMO", "ILUMINACAO_PUBLICA"]:
+        df_pdf[col] = pd.to_numeric(df_pdf[col], errors="coerce").fillna(0.0)
+    return df_pdf
+
+
 entrada_ok = st.session_state.df is not None or not st.session_state.df_manual.empty
 analise_ok = st.session_state.df_res is not None
 
@@ -621,38 +835,75 @@ if selected_step == "1. Entrada":
         """,
         unsafe_allow_html=True
     )
-    modo = st.radio("Modo de entrada", ["Upload de Excel", "Manual"], horizontal=True)
+    modo = st.radio("Modo de entrada", ["Upload de Arquivo", "Manual"], horizontal=True)
 
-    if modo == "Upload de Excel":
+    if modo == "Upload de Arquivo":
         st.markdown("""
         <div class="info-box">
-            <strong>Colunas esperadas</strong>
+            <strong>Arquivos aceitos</strong><br/>
+            Excel (.xlsx) ou PDF de Medição Fiscal.<br/>
+            <br/>
+            <strong>Colunas esperadas para análise</strong><br/>
             INSTALACAO &nbsp;·&nbsp; REQUERIDA &nbsp;·&nbsp; INJETADA &nbsp;·&nbsp;
             REVERSA &nbsp;·&nbsp; CONSUMO &nbsp;·&nbsp; ILUMINACAO_PUBLICA
         </div>
         """, unsafe_allow_html=True)
 
-        file = st.file_uploader("Arquivo Excel (.xlsx)", type=["xlsx"])
+        file = st.file_uploader("Arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"])
         if file:
-            df_upload = pd.read_excel(file)
-            df_upload.columns = df_upload.columns.str.strip().str.upper()
-            ok, msg = validar_dataframe(df_upload)
+            nome = file.name.lower()
+            if nome.endswith(".xlsx"):
+                df_upload = pd.read_excel(file)
+                df_upload.columns = df_upload.columns.str.strip().str.upper()
+                ok, msg = validar_dataframe(df_upload)
 
-            if not ok:
-                st.error(msg)
-                st.session_state.df = None
-                st.session_state.df_res = None
-                st.session_state.run_analysis_requested = False
+                if not ok:
+                    st.error(msg)
+                    st.session_state.df = None
+                    st.session_state.df_res = None
+                    st.session_state.run_analysis_requested = False
+                else:
+                    st.success(f"Arquivo carregado com sucesso. Registros encontrados: {len(df_upload)}")
+                    st.session_state.df = df_upload
+                    st.session_state.df_res = None
+                    with st.expander("Pré-visualizar dados carregados"):
+                        st.dataframe(df_upload.head(10), use_container_width=True)
+
+                    if st.button("Rodar análise", key="btn_rodar_upload", use_container_width=True, type="primary"):
+                        st.session_state.run_analysis_requested = True
+                        st.rerun()
             else:
-                st.success(f"Arquivo carregado com sucesso. Registros encontrados: {len(df_upload)}")
-                st.session_state.df = df_upload
-                st.session_state.df_res = None
-                with st.expander("Pré-visualizar dados carregados"):
-                    st.dataframe(df_upload.head(10), use_container_width=True)
+                pdf_info = extrair_dados_pdf(file.getvalue())
+                if not pdf_info["ok"]:
+                    st.error(pdf_info["erro"])
+                else:
+                    refs = pdf_info["refs"]
+                    ref_padrao = "Média" if "Média" in refs else refs[-1]
+                    idx_padrao = refs.index(ref_padrao)
+                    ref_escolhida = st.selectbox(
+                        "Referência para extração dos dados do PDF",
+                        refs,
+                        index=idx_padrao,
+                        key="pdf_ref_escolhida"
+                    )
 
-                if st.button("Rodar análise", key="btn_rodar_upload", use_container_width=True, type="primary"):
-                    st.session_state.run_analysis_requested = True
-                    st.rerun()
+                    df_pdf = montar_df_a_partir_pdf(pdf_info, ref_escolhida)
+                    ok, msg = validar_dataframe(df_pdf)
+                    if not ok:
+                        st.error(msg)
+                    else:
+                        st.success(
+                            f"PDF lido com sucesso para instalação {df_pdf.iloc[0]['INSTALACAO']} usando referência: {ref_escolhida}"
+                        )
+                        with st.expander("Pré-visualizar dados extraídos do PDF"):
+                            st.dataframe(df_pdf, use_container_width=True)
+
+                        st.session_state.df = df_pdf
+                        st.session_state.df_res = None
+
+                        if st.button("Rodar análise", key="btn_rodar_upload_pdf", use_container_width=True, type="primary"):
+                            st.session_state.run_analysis_requested = True
+                            st.rerun()
 
     else:
         st.markdown('<p class="section-label">Nova instalação</p>', unsafe_allow_html=True)
