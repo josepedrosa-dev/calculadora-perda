@@ -371,35 +371,35 @@ if st.session_state.df is not None and st.session_state.df_res is None:
             continue
 
         # =========================
-        # PERDA ATUAL (%)
+        # PERDA ATUAL
         # =========================
-        perda_pct = perda / total
-
+        perda_pct_atual = perda / total
+        
         # =========================
-        # CURVA (em pontos percentuais)
+        # CURVA (correta)
         # =========================
-        faixa    = math.ceil(perda_pct * 100)
-        meta_pct = curva.get(faixa, 0)
-
-        # 🔹 Nova perda percentual alvo (curva)
-        nova_perda_pct_curva = max(0, perda_pct - (meta_pct / 100))
-
-        # 🔹 Converter para kWh
-        perda_alvo_curva_kwh = nova_perda_pct_curva * total
-
-        # 🔹 Redução necessária pela curva
+        faixa = int(round(perda_pct_atual * 100, 0))
+        faixa = min(max(faixa, 0), max(curva.keys()))
+        
+        meta_pp = curva.get(faixa, 0)
+        
+        # 🔹 perda alvo em %
+        perda_pct_alvo = max(0, (perda_pct_atual * 100 - meta_pp) / 100)
+        
+        # 🔹 converter para kWh
+        perda_alvo_curva_kwh = perda_pct_alvo * total
+        
+        # 🔹 redução necessária
         red_min = perda - perda_alvo_curva_kwh
-
+        
         # =========================
         # META 10%
         # =========================
-        perda_10_pct = 0.10
-        perda_10_kwh = perda_10_pct * total
-
-        red_10 = perda - perda_10_kwh
-
+        perda_10_kwh = 0.10 * total
+        red_10 = max(0, perda - perda_10_kwh)
+        
         # =========================
-        # REDUÇÃO FINAL NECESSÁRIA
+        # FINAL
         # =========================
         red_total = max(red_min, red_10)
 
