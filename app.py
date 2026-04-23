@@ -439,7 +439,7 @@ if st.session_state.df is not None and st.session_state.df_res is None:
         resultados.append({
             "INSTALACAO": row["INSTALACAO"],
         
-            "PERDA_%": round(perda_pct * 100, 2),
+            "PERDA_%_ATUAL": round(perda_pct * 100, 2),
             "PERDA_KWH": round(perda, 2),
         
             "PERDA_ALVO_CURVA_%": round(perda_pct_alvo * 100, 2),
@@ -514,7 +514,7 @@ if st.session_state.df_res is not None:
         - base["ILUMINACAO_PUBLICA"]
     )
     
-    meta = perda - df_res[df_res["INSTALACAO"] == inst_sel]["RED_NECESSÁRIA"].iloc[0]
+    meta = perda - df_res[df_res["INSTALACAO"] == inst_sel]["RED_NECESSARIA_KWH"].iloc[0]
     
     # =========================
     # MODO DE GANHO
