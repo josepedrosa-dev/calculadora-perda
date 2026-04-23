@@ -442,14 +442,14 @@ if st.session_state.df is not None and st.session_state.df_res is None:
             "PERDA_%_ATUAL": round(perda_pct * 100, 2),
             "PERDA_KWH": round(perda, 2),
         
-            "PERDA_ALVO_CURVA_%": round(perda_pct_alvo * 100, 2),
-            "PERDA_ALVO_CURVA_KWH": round(perda_alvo_curva_kwh, 2), 
-            "RED_MIN_CURVA_KWH": round(red_min, 2),#incluir uma margem a mais, caso a Req e Injetada mudem
-            "RED_PARA_10%_KWH": round(red_10, 2),
+            #"PERDA_ALVO_CURVA_%": round(perda_pct_alvo * 100, 2),
+            #"PERDA_ALVO_CURVA_KWH": round(perda_alvo_curva_kwh, 2), 
+            "ENERGIA(EFICIÊNCIA)": round(red_min, 2),#incluir uma margem a mais, caso a Req e Injetada mudem
+            "ENERGIA(ADEQUADO)": round(red_10, 2),
         
-            "RED_NECESSARIA_KWH": round(red_total, 2),
+            #"RED_NECESSARIA_KWH": round(red_total, 2),
         
-            "PERDA_POS_ACAO_KWH": round(perda_final, 2),
+            #"PERDA_POS_ACAO_KWH": round(perda_final, 2),
         })
 
     st.session_state.df_res = pd.DataFrame(resultados)
