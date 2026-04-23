@@ -1092,24 +1092,30 @@ if selected_step == "2. Resultados":
     else:
         df_res = st.session_state.df_res
 
-        st.markdown('<p class="section-label">Visão Geral</p>', unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Instalações", len(df_res))
-        c2.metric("Perda média (%)", f"{df_res['PERDA_%'].mean():.2f}")
-        c3.metric("Perda total (kWh)", f"{df_res['PERDA_(kWh)'].sum():,.2f}")
+        if df_res.empty:
+            st.warning(
+                "A análise foi concluída, mas nenhum resultado válido foi gerado. "
+                "Revise os dados de entrada e os critérios de processamento na aba Entrada."
+            )
+        else:
+            st.markdown('<p class="section-label">Visão Geral</p>', unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Instalações", len(df_res))
+            c2.metric("Perda média (%)", f"{df_res['PERDA_%'].mean():.2f}")
+            c3.metric("Perda total (kWh)", f"{df_res['PERDA_(kWh)'].sum():,.2f}")
 
-        st.markdown("---")
-        st.markdown('<p class="section-label">Ranking por Perda</p>', unsafe_allow_html=True)
-        st.markdown('<p class="helper-text">Instalações com maior % de perda aparecem no topo para priorização.</p>', unsafe_allow_html=True)
-        st.dataframe(df_res.sort_values("PERDA_%", ascending=False), use_container_width=True)
+            st.markdown("---")
+            st.markdown('<p class="section-label">Ranking por Perda</p>', unsafe_allow_html=True)
+            st.markdown('<p class="helper-text">Instalações com maior % de perda aparecem no topo para priorização.</p>', unsafe_allow_html=True)
+            st.dataframe(df_res.sort_values("PERDA_%", ascending=False), use_container_width=True)
 
-        st.markdown('<p class="section-label">Exportar</p>', unsafe_allow_html=True)
-        st.download_button(
-            "Baixar resultado (.csv)",
-            df_res.to_csv(index=False),
-            "resultado.csv",
-            mime="text/csv"
-        )
+            st.markdown('<p class="section-label">Exportar</p>', unsafe_allow_html=True)
+            st.download_button(
+                "Baixar resultado (.csv)",
+                df_res.to_csv(index=False),
+                "resultado.csv",
+                mime="text/csv"
+            )
 
 # =========================
 # SIMULAÇÃO
