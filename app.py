@@ -373,7 +373,8 @@ if st.session_state.df is not None and st.session_state.df_res is None:
         # =========================
         # PERDA ATUAL
         # =========================
-        perda_pct_atual = perda / total
+        
+        perda_pct = perda / total
         
         # =========================
         # CURVA (correta)
