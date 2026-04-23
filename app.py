@@ -447,7 +447,7 @@ if st.session_state.df is not None and st.session_state.df_res is None:
             "ENERGIA (EFICIÊNCIA)": round(red_min*1.3, 2),#incluir uma margem a mais, caso a Req e Injetada mudem
             "ENERGIA (ADEQUADO)": round(red_10, 2),
         
-            #"RED_NECESSARIA_KWH": round(red_total, 2),
+            "RED_NECESSARIA_KWH": round(red_total, 2),
         
             #"PERDA_POS_ACAO_KWH": round(perda_final, 2),
         })
