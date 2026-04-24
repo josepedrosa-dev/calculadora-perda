@@ -806,6 +806,7 @@ def processar_resultados(df_input):
 
     for _, row in df.iterrows():
         total = row["REQUERIDA"] + row["INJETADA"]
+
         perda = (
             row["REQUERIDA"]
             + row["INJETADA"]
@@ -818,6 +819,10 @@ def processar_resultados(df_input):
         if total == 0:
             continue
 
+        # =========================
+        # PERDA ATUAL
+        # =========================
+        
         perda_pct = perda / total
         faixa = int(round(perda_pct * 100, 0))
         faixa = min(max(faixa, 0), max(curva.keys()))
@@ -831,6 +836,9 @@ def processar_resultados(df_input):
         red_10 = max(0, perda - perda_10_kwh)
         red_total = max(red_min, red_10)
 
+        # =========================
+        # PLANO DE AÇÃO
+        # =========================
         ganho = 0
         acoes = [
             ("Inclusoes", 150),
@@ -839,6 +847,7 @@ def processar_resultados(df_input):
             ("Cod200", 100),
             ("Cod300", 30),
         ]
+
         acoes.sort(key=lambda x: x[1], reverse=True)
 
         for _, impacto in acoes:
