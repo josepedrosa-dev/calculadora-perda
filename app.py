@@ -1241,7 +1241,7 @@ with tab_simulacao:
         if red_series.empty:
             st.error("Não foi possível obter a meta para a instalação selecionada.")
             st.stop()
-        meta = perda - float(red_series.iloc[0])
+        meta = perda_alvo_curva_kwh
 
         st.markdown(
             f"""
