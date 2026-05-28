@@ -1407,11 +1407,11 @@ with tab_simulacao:
         else:
             atingimento = max(0.0, min(100.0, (reducao_obtida / reducao_necessaria) * 100))
 
-        if atingimento < 60:
+        if atingimento < 90:
             classe_badge = "sim-badge sim-badge-critico"
             texto_badge = "Crítico"
             cor_barra = "#ef4444"
-        elif atingimento < 90:
+        elif atingimento < 100:
             classe_badge = "sim-badge sim-badge-atencao"
             texto_badge = "Meta próxima"
             cor_barra = "#f59e0b"
