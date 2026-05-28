@@ -1237,11 +1237,11 @@ with tab_simulacao:
             - base["CONSUMO"]
             - base["ILUMINACAO_PUBLICA"]
         )
-        red_series = df_res[df_res["INSTALACAO"] == str(inst_sel)]["RED_NECESSARIA_KWH"]
+        red_series = df_res[df_res["INSTALACAO"] == str(inst_sel)]["PERDA_ALVO_CURVA_KWH"]
         if red_series.empty:
             st.error("Não foi possível obter a meta para a instalação selecionada.")
             st.stop()
-        meta = perda_alvo_curva_kwh
+        meta = float(meta_series.iloc[0])
 
         st.markdown(
             f"""
