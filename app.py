@@ -823,7 +823,7 @@ def processar_resultados(df_input):
         # =========================
         
         perda_pct = perda / total
-        faixa = int(round(perda_pct * 100, 0))
+        faixa = math.ceil(perda_pct * 100)
         faixa = min(max(faixa, 0), max(curva.keys()))
         meta_pp = curva.get(faixa, 0)
 
