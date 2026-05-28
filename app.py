@@ -18,6 +18,19 @@ APP_SUBTITLE = "Calculadora de impacto operacional"
 AUTHOR_NAME = "José Pedrosa"
 AUTHOR_EMAIL = "jose.peronico@equatorialenergia.com.br"
 USAGE_LOG_PATH = Path(__file__).with_name("usage_events.csv")
+USER_NAME_OPTIONS = [
+    "João",
+    "Marciel",
+    "Matheus",
+    "Alex",
+    "Adriel",
+    "Bismackson",
+    "Felipe",
+    "Mariane",
+    "Outros",
+]
+OTHER_USER_OPTION = "Outros"
+DEFAULT_USER_AREA = "Não informado"
 USAGE_EVENT_COLUMNS = [
     "timestamp",
     "session_id",
@@ -494,10 +507,53 @@ def get_admin_password() -> str:
     try:
         secret_password = st.secrets.get("ADMIN_PASSWORD")
         if secret_password:
-            return str(secret_password)
+            return str(secret_password).strip()
     except Exception:
         pass
-    return os.environ.get("ADMIN_PASSWORD", "admin")
+
+    env_password = os.environ.get("ADMIN_PASSWORD")
+    if env_password:
+        return env_password.strip()
+
+    return ""
+
+
+def normalize_lookup_text(value: str) -> str:
+    return " ".join(str(value).strip().casefold().split())
+
+
+def get_admin_names() -> set[str]:
+    raw_names = None
+    try:
+        raw_names = st.secrets.get("ADMIN_NAMES")
+    except Exception:
+        pass
+
+    if raw_names is None:
+        raw_names = os.environ.get("ADMIN_NAMES")
+
+    if isinstance(raw_names, str):
+        names = [name.strip() for name in raw_names.split(",")]
+    elif raw_names:
+        names = [str(name).strip() for name in raw_names]
+    else:
+        names = []
+
+    return {normalize_lookup_text(name) for name in names if str(name).strip()}
+
+
+def user_name_is_admin(name: str) -> bool:
+    return normalize_lookup_text(name) in get_admin_names()
+
+
+def admin_credentials_are_valid(name: str, password: str) -> bool:
+    admin_password = get_admin_password()
+    return bool(admin_password and password and user_name_is_admin(name) and password == admin_password)
+
+
+def make_user_identifier(name: str) -> str:
+    normalized_name = normalize_lookup_text(name).replace(" ", "_")
+    return f"nome:{normalized_name}"
 
 
 def current_user() -> dict | None:
@@ -564,30 +620,33 @@ def render_login() -> None:
 """,
         unsafe_allow_html=True,
     )
+    selected_name = st.selectbox("Nome", USER_NAME_OPTIONS, key="usage_login_name_option")
     with st.form("usage_login_form"):
-        name = st.text_input("Nome")
-        identifier = st.text_input("E-mail ou matrícula")
-        area = st.text_input("Área / equipe")
+        custom_name = ""
+        if selected_name == OTHER_USER_OPTION:
+            custom_name = st.text_input("Digite o nome")
         admin_password = st.text_input("Senha de administrador (opcional)", type="password")
         submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
 
     if not submitted:
         return
 
-    if not name.strip() or not identifier.strip():
-        st.error("Informe nome e e-mail/matrícula para acessar a ferramenta.")
+    name = custom_name if selected_name == OTHER_USER_OPTION else selected_name
+    name = name.strip()
+    if not name:
+        st.error("Informe o nome para acessar a ferramenta.")
         return
 
     typed_admin_password = admin_password.strip()
-    is_admin = bool(typed_admin_password) and typed_admin_password == get_admin_password()
+    is_admin = admin_credentials_are_valid(name, typed_admin_password)
     if typed_admin_password and not is_admin:
-        st.error("Senha de administrador inválida.")
+        st.error("Credenciais de administrador inválidas.")
         return
 
     st.session_state.usage_user = {
-        "name": name.strip(),
-        "identifier": identifier.strip().lower(),
-        "area": area.strip() or "Não informado",
+        "name": name,
+        "identifier": make_user_identifier(name),
+        "area": DEFAULT_USER_AREA,
         "is_admin": is_admin,
     }
     ensure_usage_session_id()
@@ -609,9 +668,10 @@ def render_logged_user_sidebar() -> None:
 
     st.sidebar.markdown("### Usuário")
     st.sidebar.write(user["name"])
-    st.sidebar.caption(f"{user['identifier']} · {user['area']}")
     if user.get("is_admin"):
         st.sidebar.success("Administrador")
+    else:
+        st.sidebar.caption("Sessão ativa")
 
     if st.sidebar.button("Sair", use_container_width=True):
         append_usage_event("logout")
@@ -1589,7 +1649,7 @@ def render_usage_dashboard() -> None:
 
     st.markdown('<p class="section-label">Uso por usuário</p>', unsafe_allow_html=True)
     by_user = (
-        events.groupby(["user_id", "user_name", "user_area"], dropna=False)
+        events.groupby(["user_id", "user_name"], dropna=False)
         .agg(
             eventos=("event_type", "count"),
             sessoes=("session_id", "nunique"),
@@ -1602,7 +1662,6 @@ def render_usage_dashboard() -> None:
         columns={
             "user_id": "identificador",
             "user_name": "nome",
-            "user_area": "area",
         }
     )
     st.dataframe(

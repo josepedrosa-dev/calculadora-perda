@@ -108,6 +108,22 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## Login e Administrador
+
+O login usa uma lista de nomes predefinida e a opcao "Outros" para preencher um nome manualmente.
+Os campos e-mail, matricula e area/equipe nao sao solicitados.
+
+O acesso administrador exige nome e senha validos ao mesmo tempo. O nome de administrador nao aparece na lista publica; ele deve ser digitado pela opcao "Outros".
+
+No Streamlit Cloud, cadastre os secrets assim, trocando os valores pelos reais:
+
+```toml
+ADMIN_PASSWORD = "sua_senha_forte_aqui"
+ADMIN_NAMES = ["nome_do_admin"]
+```
+
+Nenhum usuario vira administrador apenas por selecionar um nome da lista ou apenas por saber a senha. Para teste local, use variaveis de ambiente `ADMIN_PASSWORD` e `ADMIN_NAMES`; nao salve senhas reais no repositorio.
+
 ## Roadmap Recomendado (proximos passos)
 
 1. Adicionar validacao visual de referencia extraida do PDF (tabela de conferencia antes do calculo).
