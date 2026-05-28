@@ -578,7 +578,6 @@ if "sim_persist_c300_medio" not in st.session_state:
 
 
 curva_lista = [
-    0,
     0.88,
     1.4,
     1.84,
