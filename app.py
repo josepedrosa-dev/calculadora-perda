@@ -1398,7 +1398,7 @@ with tab_simulacao:
         )
 
         perda_proj = max(0.0, perda - ganho_total)
-        perda_alvo = float(meta_series.iloc[0])
+        perda_alvo = float(red_series.iloc[0])
         meta_ganho = max(0.0, perda - perda_alvo)
         reducao_obtida = max(0.0, ganho_total)
         
