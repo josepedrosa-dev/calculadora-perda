@@ -1241,7 +1241,7 @@ with tab_simulacao:
         if red_series.empty:
             st.error("Não foi possível obter a meta para a instalação selecionada.")
             st.stop()
-        meta = float(meta_series.iloc[0])
+        meta = float(red_series.iloc[0])
 
         st.markdown(
             f"""
