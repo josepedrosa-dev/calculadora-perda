@@ -1,156 +1,95 @@
 import io
 import math
 import re
+from dataclasses import dataclass
 
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from pypdf import PdfReader
 
+
+APP_TITLE = "Calculadora de Recuperação de Energia"
+APP_SUBTITLE = "Calculadora de impacto operacional"
+AUTHOR_NAME = "José Pedrosa"
+AUTHOR_EMAIL = "jose.peronico@equatorialenergia.com.br"
+
+REQUIRED_COLUMNS = [
+    "INSTALACAO",
+    "REQUERIDA",
+    "INJETADA",
+    "REVERSA",
+    "CONSUMO",
+    "ILUMINACAO_PUBLICA",
+]
+NUMERIC_COLUMNS = REQUIRED_COLUMNS[1:]
+
+ACTION_DEFAULTS = {
+    "inc": {"label": "Inclusões", "default_gain": 150.0},
+    "c100": {"label": "Cod 100", "default_gain": 120.0},
+    "exc": {"label": "Exclusões", "default_gain": 100.0},
+    "c200": {"label": "Cod 200", "default_gain": 100.0},
+    "c300": {"label": "Cod 300", "default_gain": 30.0},
+}
+
+LEGACY_EXPORT_COLUMNS = {
+    "PERDA_%_ATUAL": "PERDA_%",
+    "PERDA_KWH": "PERDA_(kWh)",
+    "RED_MIN_CURVA_KWH": "RED_MIN_EFICIÊNCIA",
+    "RED_PARA_10%_KWH": "RED_PARA_ADEQUADA",
+    "RED_NECESSARIA_KWH": "RED_NECESSÁRIA",
+}
+
+CURVA_LISTA = [
+    0.88, 1.4, 1.84, 2.22, 2.58, 2.91, 3.23, 3.53, 3.82, 4.09,
+    4.36, 4.62, 4.87, 5.12, 5.36, 5.6, 5.83, 6.05, 6.27, 6.49,
+    6.71, 6.92, 7.12, 7.33, 7.53, 7.73, 7.93, 8.12, 8.31, 8.5,
+    8.69, 8.87, 9.06, 9.24, 9.42, 9.6, 9.77, 9.95, 10.12, 10.29,
+    10.47, 10.63, 10.8, 10.97, 11.13, 11.3, 11.46, 11.62, 11.78,
+    11.94, 12.1, 12.26, 12.41, 12.57, 12.72, 12.88, 13.03, 13.18,
+    13.33, 13.48, 13.63, 13.78, 13.93, 14.07, 14.22, 14.37, 14.51,
+    14.65, 14.8, 14.94, 15.08, 15.22, 15.36, 15.5, 15.64, 15.78,
+    15.92, 16.05, 16.19, 16.33, 16.46, 16.6, 16.73, 16.87, 17,
+    17.13, 17.26, 17.4, 17.53, 17.66, 17.79, 17.92, 18.05, 18.18,
+    18.31, 18.43, 18.56, 18.69, 18.81, 18.94,
+]
+CURVA = {i: valor for i, valor in enumerate(CURVA_LISTA)}
+
+
+@dataclass
+class ValidationResult:
+    ok: bool
+    message: str
+
+
+@dataclass
+class SimulationResult:
+    perda_atual: float
+    perda_projetada: float
+    meta_ganho: float
+    ganho_realizado: float
+    atingimento: float
+    atingimento_barra: float
+
+    @property
+    def meta_atingida(self) -> bool:
+        return self.ganho_realizado >= self.meta_ganho
+
+    @property
+    def falta_para_meta(self) -> float:
+        return max(0.0, self.meta_ganho - self.ganho_realizado)
+
+
 st.set_page_config(
-    page_title="Calculadora de Recuperação de Energia",
+    page_title=APP_TITLE,
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 
-def _to_float_br(valor_txt):
-    txt = re.sub(r"[^\d,\.\-]", "", str(valor_txt).strip())
-    if not txt:
-        return None
-
-    if "," in txt and "." in txt:
-        if txt.rfind(",") > txt.rfind("."):
-            txt = txt.replace(".", "").replace(",", ".")
-        else:
-            txt = txt.replace(",", "")
-    elif "," in txt:
-        if re.fullmatch(r"-?\d{1,3}(,\d{3})+", txt) or re.fullmatch(r"-?\d+,\d{3}", txt):
-            txt = txt.replace(",", "")
-        elif re.fullmatch(r"-?\d+,\d{1,2}", txt):
-            txt = txt.replace(",", ".")
-        else:
-            txt = txt.replace(",", "")
-    elif "." in txt:
-        if re.fullmatch(r"-?\d{1,3}(\.\d{3})+", txt) or re.fullmatch(r"-?\d+\.\d{3}", txt):
-            txt = txt.replace(".", "")
-
-    try:
-        return float(txt)
-    except ValueError:
-        return None
-
-
-def _extrair_serie_metricas(texto_norm, label, proximos_labels):
-    idx = texto_norm.find(label)
-    if idx == -1:
-        return []
-
-    trecho = texto_norm[idx: idx + 450]
-    if ":" in trecho:
-        trecho = trecho.split(":", 1)[1]
-
-    fim = len(trecho)
-    for prox in proximos_labels:
-        pos = trecho.find(prox)
-        if pos != -1:
-            fim = min(fim, pos)
-    trecho = trecho[:fim]
-
-    nums = re.findall(r"\d{1,3}(?:\.\d{3})*(?:,\d+)?", trecho)
-    serie = []
-    for n in nums:
-        val = _to_float_br(n)
-        if val is not None:
-            serie.append(val)
-    return serie
-
-
-def _extrair_instalacao_fiscal(texto_norm):
-    for padrao in [
-        r"Instala[çc][aã]o\s*Fiscal\s*:?\s*(\d{8,12})",
-        r"Inst\.?\s*Fiscal\s*:?\s*(\d{8,12})",
-    ]:
-        m = re.search(padrao, texto_norm, flags=re.IGNORECASE)
-        if m:
-            return m.group(1)
-
-    trecho = texto_norm[:2500]
-    candidatos = re.findall(r"\b\d{8,12}\b", trecho)
-    return candidatos[0] if candidatos else ""
-
-
-def extrair_dados_pdf_text(texto):
-    texto_norm = re.sub(r"\s+", " ", texto)
-
-    bloco_refs = texto_norm[:1200]
-    refs_detectadas = []
-    for mes, ano in re.findall(r"\b([A-Za-z]{3,4})\s*/\s*(\d{2}\s*\d{2}|\d{2,4})\b", bloco_refs, flags=re.IGNORECASE):
-        ano_limpo = re.sub(r"\s+", "", ano)
-        if len(ano_limpo) == 2:
-            ano_limpo = f"20{ano_limpo}"
-        ref = f"{mes.title()}/{ano_limpo}"
-        if ref not in refs_detectadas:
-            refs_detectadas.append(ref)
-    if re.search(r"M[eé]dia", bloco_refs, flags=re.IGNORECASE):
-        refs_detectadas.append("Média")
-
-    labels = [
-        "Requerida Trafo (kWh)",
-        "Injetada GDIS (kWh)",
-        "Energia Reversa (kWh)",
-        "Consumo Clientes (kWh)",
-        "IP Estimada (kWh)",
-    ]
-
-    metricas = {
-        "REQUERIDA": _extrair_serie_metricas(texto_norm, labels[0], labels[1:]),
-        "INJETADA": _extrair_serie_metricas(texto_norm, labels[1], labels[2:]),
-        "REVERSA": _extrair_serie_metricas(texto_norm, labels[2], labels[3:]),
-        "CONSUMO": _extrair_serie_metricas(texto_norm, labels[3], labels[4:]),
-        "ILUMINACAO_PUBLICA": _extrair_serie_metricas(texto_norm, labels[4], ["Referência", "Perda (KWh)"]),
-    }
-
-    instalacao = _extrair_instalacao_fiscal(texto_norm)
-    if not instalacao:
-        return {"ok": False, "erro": "Não foi possível identificar a Instalação Fiscal no PDF."}
-    if not all(metricas[chave] for chave in metricas):
-        return {"ok": False, "erro": "Não foi possível extrair todas as séries necessárias do PDF."}
-
-    alvo = min(len(v) for v in metricas.values() if v)
-    alvo = min(alvo, 4)
-    refs = [r for r in refs_detectadas if r != "Média"][: max(0, alvo - 1)]
-    while len(refs) < max(0, alvo - 1):
-        refs.append(f"Mês {len(refs) + 1}")
-    refs.append("Média")
-
-    for campo in metricas:
-        metricas[campo] = metricas[campo][:alvo]
-
-    return {
-        "ok": True,
-        "instalacao": instalacao,
-        "refs": refs,
-        "metricas": metricas,
-    }
-
-
-def montar_df_a_partir_pdf(pdf_info, referencia_escolhida):
-    refs = pdf_info["refs"]
-    idx = refs.index(referencia_escolhida) if referencia_escolhida in refs else len(refs) - 1
-
-    linha = {"INSTALACAO": str(pdf_info["instalacao"]).strip()}
-    for campo, serie in pdf_info["metricas"].items():
-        linha[campo] = float(serie[idx]) if idx < len(serie) else float(serie[-1])
-
-    df_pdf = pd.DataFrame([linha])
-    for col in ["REQUERIDA", "INJETADA", "REVERSA", "CONSUMO", "ILUMINACAO_PUBLICA"]:
-        df_pdf[col] = pd.to_numeric(df_pdf[col], errors="coerce").fillna(0.0)
-    return df_pdf
-
-
-st.markdown(
-    """
+def render_css() -> None:
+    st.markdown(
+        """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -161,12 +100,9 @@ st.markdown(
     --green-500: #2f9e79;
     --amber-500: #b45309;
     --red-500: #b91c1c;
-
     --gray-50: #f7fafc;
-    --gray-100: #eef3f7;
     --gray-300: #ccd9e5;
     --gray-700: #334b61;
-
     --bg-primary: #f4f8fb;
     --bg-card: #ffffff;
     --text-primary: #10273d;
@@ -219,24 +155,15 @@ st.markdown(
     font-weight: 700;
 }
 
-.app-header p {
-    margin: 0;
-    font-size: 0.98rem;
-}
+.app-header p { margin: 0; font-size: 0.98rem; }
 
 .step-grid,
 .status-grid,
 .results-grid,
 .sim-grid {
     display: grid;
-    gap: 0.75rem;
-}
-
-.step-grid,
-.status-grid,
-.results-grid,
-.sim-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
 }
 
 .step-grid { margin: 0.45rem 0 1.1rem; }
@@ -325,9 +252,7 @@ st.markdown(
     font-weight: 700;
 }
 
-.module-subtitle {
-    margin: 0.22rem 0 0;
-}
+.module-subtitle { margin: 0.22rem 0 0; }
 
 .counter-chip {
     display: inline-block;
@@ -353,9 +278,7 @@ st.markdown(
     margin-top: 0.62rem;
 }
 
-.sim-control-note {
-    margin: 0.28rem 0 0;
-}
+.sim-control-note { margin: 0.28rem 0 0; }
 
 .action-hint {
     margin: 0.2rem 0 0.7rem;
@@ -412,7 +335,6 @@ st.markdown(
 .sim-progress-fill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #34d399, #3b82f6);
     transition: width 0.3s ease;
 }
 
@@ -498,9 +420,7 @@ st.markdown(
     font-weight: 600;
 }
 
-.stDownloadButton > button * {
-    color: #0f5132 !important;
-}
+.stDownloadButton > button * { color: #0f5132 !important; }
 
 [data-testid="stDataFrame"] {
     border-radius: 18px;
@@ -525,177 +445,342 @@ st.markdown(
 }
 </style>
 """,
-    unsafe_allow_html=True,
-)
-
-
-if "df_manual" not in st.session_state:
-    st.session_state.df_manual = pd.DataFrame(
-        columns=[
-            "INSTALACAO",
-            "REQUERIDA",
-            "INJETADA",
-            "REVERSA",
-            "CONSUMO",
-            "ILUMINACAO_PUBLICA",
-        ]
+        unsafe_allow_html=True,
     )
-if "df" not in st.session_state:
-    st.session_state.df = None
-if "df_res" not in st.session_state:
-    st.session_state.df_res = None
-if "run_analysis_requested" not in st.session_state:
+
+
+def init_session_state() -> None:
+    defaults = {
+        "df": None,
+        "df_res": None,
+        "run_analysis_requested": False,
+        "pending_tab_index": None,
+        "last_input_signature": None,
+        "sim_clear_requested": False,
+        "sim_persist_modo": "Valor médio",
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+    if "df_manual" not in st.session_state:
+        st.session_state.df_manual = pd.DataFrame(columns=REQUIRED_COLUMNS)
+
+    for action_key, config in ACTION_DEFAULTS.items():
+        st.session_state.setdefault(f"sim_persist_{action_key}", 0)
+        st.session_state.setdefault(f"sim_persist_{action_key}_medio", config["default_gain"])
+
+
+def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    result = df.copy()
+    result.columns = result.columns.str.strip().str.upper()
+    return result
+
+
+def normalize_instalacao(df: pd.DataFrame) -> pd.DataFrame:
+    result = df.copy()
+    if "INSTALACAO" in result.columns:
+        result["INSTALACAO"] = result["INSTALACAO"].astype(str).str.strip()
+    return result
+
+
+def parse_float_br(value) -> float | None:
+    text = re.sub(r"[^\d,\.\-]", "", str(value).strip())
+    if not text:
+        return None
+
+    if "," in text and "." in text:
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", "")
+    elif "," in text:
+        if re.fullmatch(r"-?\d{1,3}(,\d{3})+", text) or re.fullmatch(r"-?\d+,\d{3}", text):
+            text = text.replace(",", "")
+        elif re.fullmatch(r"-?\d+,\d{1,2}", text):
+            text = text.replace(",", ".")
+        else:
+            text = text.replace(",", "")
+    elif "." in text and (
+        re.fullmatch(r"-?\d{1,3}(\.\d{3})+", text) or re.fullmatch(r"-?\d+\.\d{3}", text)
+    ):
+        text = text.replace(".", "")
+
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def validate_dataframe(df_base: pd.DataFrame) -> ValidationResult:
+    missing = set(REQUIRED_COLUMNS) - set(df_base.columns)
+    if missing:
+        return ValidationResult(False, f"Faltam colunas obrigatórias: {', '.join(sorted(missing))}")
+
+    df_val = df_base.copy()
+    for column in NUMERIC_COLUMNS:
+        df_val[column] = pd.to_numeric(df_val[column], errors="coerce")
+        if df_val[column].isna().any():
+            return ValidationResult(False, f"A coluna {column} possui valores inválidos.")
+        if (df_val[column] < 0).any():
+            return ValidationResult(False, f"A coluna {column} não pode ter valores negativos.")
+
+    instalacoes = df_val["INSTALACAO"].astype(str).str.strip()
+    if instalacoes.eq("").any():
+        return ValidationResult(False, "A coluna INSTALACAO possui valores vazios.")
+    if instalacoes.duplicated().any():
+        return ValidationResult(False, "Existem instalações duplicadas.")
+
+    return ValidationResult(True, "ok")
+
+
+def calculate_loss(row: pd.Series) -> float:
+    perda = row["REQUERIDA"] + row["INJETADA"] - row["REVERSA"] - row["CONSUMO"] - row["ILUMINACAO_PUBLICA"]
+    return max(0.0, float(perda))
+
+
+def extract_metric_series(texto_norm: str, label: str, next_labels: list[str]) -> list[float]:
+    start = texto_norm.find(label)
+    if start == -1:
+        return []
+
+    segment = texto_norm[start : start + 450]
+    if ":" in segment:
+        segment = segment.split(":", 1)[1]
+
+    end = len(segment)
+    for next_label in next_labels:
+        position = segment.find(next_label)
+        if position != -1:
+            end = min(end, position)
+    segment = segment[:end]
+
+    values = []
+    for number in re.findall(r"\d{1,3}(?:\.\d{3})*(?:,\d+)?", segment):
+        parsed = parse_float_br(number)
+        if parsed is not None:
+            values.append(parsed)
+    return values
+
+
+def extract_installation_id(texto_norm: str) -> str:
+    patterns = [
+        r"Instala[çc][aã]o\s*Fiscal\s*:?\s*(\d{8,12})",
+        r"Inst\.?\s*Fiscal\s*:?\s*(\d{8,12})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, texto_norm, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+
+    candidates = re.findall(r"\b\d{8,12}\b", texto_norm[:2500])
+    return candidates[0] if candidates else ""
+
+
+def extract_pdf_data_from_text(text: str) -> dict:
+    texto_norm = re.sub(r"\s+", " ", text)
+    refs_detectadas = extract_pdf_references(texto_norm[:1200])
+
+    labels = [
+        "Requerida Trafo (kWh)",
+        "Injetada GDIS (kWh)",
+        "Energia Reversa (kWh)",
+        "Consumo Clientes (kWh)",
+        "IP Estimada (kWh)",
+    ]
+    metrics = {
+        "REQUERIDA": extract_metric_series(texto_norm, labels[0], labels[1:]),
+        "INJETADA": extract_metric_series(texto_norm, labels[1], labels[2:]),
+        "REVERSA": extract_metric_series(texto_norm, labels[2], labels[3:]),
+        "CONSUMO": extract_metric_series(texto_norm, labels[3], labels[4:]),
+        "ILUMINACAO_PUBLICA": extract_metric_series(texto_norm, labels[4], ["Referência", "Perda (KWh)"]),
+    }
+
+    installation = extract_installation_id(texto_norm)
+    if not installation:
+        return {"ok": False, "erro": "Não foi possível identificar a Instalação Fiscal no PDF."}
+    if not all(metrics[column] for column in metrics):
+        return {"ok": False, "erro": "Não foi possível extrair todas as séries necessárias do PDF."}
+
+    target_len = min(min(len(values) for values in metrics.values() if values), 4)
+    refs = [ref for ref in refs_detectadas if ref != "Média"][: max(0, target_len - 1)]
+    while len(refs) < max(0, target_len - 1):
+        refs.append(f"Mês {len(refs) + 1}")
+    refs.append("Média")
+
+    for column in metrics:
+        metrics[column] = metrics[column][:target_len]
+
+    return {"ok": True, "instalacao": installation, "refs": refs, "metricas": metrics}
+
+
+def extract_pdf_references(text: str) -> list[str]:
+    references = []
+    pattern = r"\b([A-Za-z]{3,4})\s*/\s*(\d{2}\s*\d{2}|\d{2,4})\b"
+    for month, year in re.findall(pattern, text, flags=re.IGNORECASE):
+        clean_year = re.sub(r"\s+", "", year)
+        if len(clean_year) == 2:
+            clean_year = f"20{clean_year}"
+        reference = f"{month.title()}/{clean_year}"
+        if reference not in references:
+            references.append(reference)
+
+    if re.search(r"M[eé]dia", text, flags=re.IGNORECASE):
+        references.append("Média")
+    return references
+
+
+@st.cache_data(show_spinner=False)
+def load_excel_bytes(file_bytes: bytes) -> pd.DataFrame:
+    return normalize_columns(pd.read_excel(io.BytesIO(file_bytes)))
+
+
+@st.cache_data(show_spinner=False)
+def extract_pdf_data_cached(pdf_bytes: bytes) -> dict:
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    text = " ".join(page.extract_text() or "" for page in reader.pages[:4])
+    return extract_pdf_data_from_text(text)
+
+
+def extract_pdf_data(pdf_bytes: bytes) -> dict:
+    try:
+        return extract_pdf_data_cached(pdf_bytes)
+    except Exception as exc:
+        return {"ok": False, "erro": f"Falha ao ler PDF: {exc}"}
+
+
+def build_pdf_dataframe(pdf_info: dict, selected_reference: str) -> pd.DataFrame:
+    refs = pdf_info["refs"]
+    idx = refs.index(selected_reference) if selected_reference in refs else len(refs) - 1
+
+    row = {"INSTALACAO": str(pdf_info["instalacao"]).strip()}
+    for column, series in pdf_info["metricas"].items():
+        row[column] = float(series[idx]) if idx < len(series) else float(series[-1])
+
+    df_pdf = pd.DataFrame([row])
+    for column in NUMERIC_COLUMNS:
+        df_pdf[column] = pd.to_numeric(df_pdf[column], errors="coerce").fillna(0.0)
+    return df_pdf
+
+
+def build_pdf_reference_table(pdf_info: dict) -> pd.DataFrame:
+    rows = []
+    for idx, reference in enumerate(pdf_info["refs"]):
+        row = {"REFERENCIA": reference}
+        for column, series in pdf_info["metricas"].items():
+            row[column] = float(series[idx]) if idx < len(series) else None
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def process_results(df_input: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    df = normalize_instalacao(df_input)
+
+    for _, row in df.iterrows():
+        total = row["REQUERIDA"] + row["INJETADA"]
+        if total == 0:
+            continue
+
+        perda = calculate_loss(row)
+        perda_pct = perda / total
+        faixa = min(max(math.ceil(perda_pct * 100), 0), max(CURVA.keys()))
+        meta_pp = CURVA.get(faixa, 0)
+
+        perda_pct_alvo = max(0.0, (perda_pct * 100 - meta_pp) / 100)
+        perda_alvo_curva_kwh = perda_pct_alvo * total
+
+        red_min = perda - perda_alvo_curva_kwh
+        perda_10_kwh = 0.10 * total
+        red_10 = max(0.0, perda - perda_10_kwh)
+        red_total = max(red_min, red_10)
+        perda_final = max(0.0, perda - estimate_action_plan_gain(red_total))
+
+        rows.append(
+            {
+                "INSTALACAO": row["INSTALACAO"],
+                "PERDA_%_ATUAL": round(perda_pct * 100, 2),
+                "PERDA_KWH": round(perda, 2),
+                "PERDA_ALVO_CURVA_%": round(perda_pct_alvo * 100, 2),
+                "PERDA_ALVO_CURVA_KWH": round(perda_alvo_curva_kwh, 2),
+                "RED_MIN_CURVA_KWH": round(red_min, 2),
+                "RED_PARA_10%_KWH": round(red_10, 2),
+                "RED_NECESSARIA_KWH": round(red_total, 2),
+                "PERDA_POS_ACAO_KWH": round(perda_final, 2),
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def estimate_action_plan_gain(target_reduction: float) -> float:
+    gain = 0.0
+    impacts = sorted([150.0, 120.0, -100.0, 100.0, 30.0], reverse=True)
+    for impact in impacts:
+        if gain >= target_reduction:
+            break
+        if impact <= 0:
+            continue
+        quantity = math.ceil((target_reduction - gain) / impact)
+        gain += quantity * impact
+    return gain
+
+
+def build_export_dataframe(df_res: pd.DataFrame) -> pd.DataFrame:
+    df_export = df_res.copy()
+    for new_column, legacy_column in LEGACY_EXPORT_COLUMNS.items():
+        if new_column in df_export.columns and legacy_column not in df_export.columns:
+            df_export[legacy_column] = df_export[new_column]
+    return df_export
+
+
+def update_input_base(df_new: pd.DataFrame, signature: str) -> None:
+    if st.session_state.last_input_signature != signature:
+        st.session_state.df = df_new
+        st.session_state.df_res = None
+        st.session_state.run_analysis_requested = False
+        st.session_state.last_input_signature = signature
+
+
+def request_analysis(target_tab_index: int = 1) -> None:
+    st.session_state.run_analysis_requested = True
+    st.session_state.pending_tab_index = target_tab_index
+    st.rerun()
+
+
+def run_pending_analysis() -> None:
+    if not (
+        st.session_state.df is not None
+        and st.session_state.df_res is None
+        and st.session_state.run_analysis_requested
+    ):
+        return
+
+    df = normalize_instalacao(normalize_columns(st.session_state.df))
+    st.session_state.df = df
+    st.session_state.df_res = process_results(df)
     st.session_state.run_analysis_requested = False
-if "pending_tab_index" not in st.session_state:
-    st.session_state.pending_tab_index = None
-if "last_input_signature" not in st.session_state:
-    st.session_state.last_input_signature = None
-
-if "sim_clear_requested" not in st.session_state:
-    st.session_state.sim_clear_requested = False
-if "sim_persist_modo" not in st.session_state:
-    st.session_state.sim_persist_modo = "Valor médio"
-if "sim_persist_inc" not in st.session_state:
-    st.session_state.sim_persist_inc = 0
-if "sim_persist_c100" not in st.session_state:
-    st.session_state.sim_persist_c100 = 0
-if "sim_persist_exc" not in st.session_state:
-    st.session_state.sim_persist_exc = 0
-if "sim_persist_c200" not in st.session_state:
-    st.session_state.sim_persist_c200 = 0
-if "sim_persist_c300" not in st.session_state:
-    st.session_state.sim_persist_c300 = 0
-if "sim_persist_inc_medio" not in st.session_state:
-    st.session_state.sim_persist_inc_medio = 150.0
-if "sim_persist_c100_medio" not in st.session_state:
-    st.session_state.sim_persist_c100_medio = 120.0
-if "sim_persist_exc_medio" not in st.session_state:
-    st.session_state.sim_persist_exc_medio = 100.0
-if "sim_persist_c200_medio" not in st.session_state:
-    st.session_state.sim_persist_c200_medio = 100.0
-if "sim_persist_c300_medio" not in st.session_state:
-    st.session_state.sim_persist_c300_medio = 30.0
+    st.session_state.pending_tab_index = 1
+    st.rerun()
 
 
-curva_lista = [
-    0.88,
-    1.4,
-    1.84,
-    2.22,
-    2.58,
-    2.91,
-    3.23,
-    3.53,
-    3.82,
-    4.09,
-    4.36,
-    4.62,
-    4.87,
-    5.12,
-    5.36,
-    5.6,
-    5.83,
-    6.05,
-    6.27,
-    6.49,
-    6.71,
-    6.92,
-    7.12,
-    7.33,
-    7.53,
-    7.73,
-    7.93,
-    8.12,
-    8.31,
-    8.5,
-    8.69,
-    8.87,
-    9.06,
-    9.24,
-    9.42,
-    9.6,
-    9.77,
-    9.95,
-    10.12,
-    10.29,
-    10.47,
-    10.63,
-    10.8,
-    10.97,
-    11.13,
-    11.3,
-    11.46,
-    11.62,
-    11.78,
-    11.94,
-    12.1,
-    12.26,
-    12.41,
-    12.57,
-    12.72,
-    12.88,
-    13.03,
-    13.18,
-    13.33,
-    13.48,
-    13.63,
-    13.78,
-    13.93,
-    14.07,
-    14.22,
-    14.37,
-    14.51,
-    14.65,
-    14.8,
-    14.94,
-    15.08,
-    15.22,
-    15.36,
-    15.5,
-    15.64,
-    15.78,
-    15.92,
-    16.05,
-    16.19,
-    16.33,
-    16.46,
-    16.6,
-    16.73,
-    16.87,
-    17,
-    17.13,
-    17.26,
-    17.4,
-    17.53,
-    17.66,
-    17.79,
-    17.92,
-    18.05,
-    18.18,
-    18.31,
-    18.43,
-    18.56,
-    18.69,
-    18.81,
-    18.94,
-]
-curva = {i: curva_lista[i] for i in range(len(curva_lista))}
-
-
-st.markdown(
-    """
+def render_header() -> None:
+    st.markdown(
+        f"""
 <div class="app-header">
-    <h1>Projeção de Recuperação de Energia</h1>
-    <p>Calculadora de impacto operacional</p>
-    <p>Desenvolvido por: José Pedrosa</p>
-    <p>jose.peronico@equatorialenergia.com.br</p>
+    <h1>{APP_TITLE}</h1>
+    <p>{APP_SUBTITLE}</p>
+    <p>Desenvolvido por: {AUTHOR_NAME}</p>
+    <p>{AUTHOR_EMAIL}</p>
 </div>
 """,
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
 
-st.markdown(
-    """
+
+def render_step_cards() -> None:
+    st.markdown(
+        """
 <div class="step-grid">
     <div class="step-card">
         <strong>Passo 1</strong>
@@ -711,185 +796,16 @@ st.markdown(
     </div>
 </div>
 """,
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
 
 
-def validar_dataframe(df_base):
-    colunas_esperadas = {
-        "INSTALACAO",
-        "REQUERIDA",
-        "INJETADA",
-        "REVERSA",
-        "CONSUMO",
-        "ILUMINACAO_PUBLICA",
-    }
-    faltantes = colunas_esperadas - set(df_base.columns)
-    if faltantes:
-        return False, f"Faltam colunas obrigatórias: {', '.join(sorted(faltantes))}"
+def render_status_cards() -> None:
+    entrada_ok = st.session_state.df is not None or not st.session_state.df_manual.empty
+    analise_ok = st.session_state.df_res is not None
 
-    df_val = df_base.copy()
-    colunas_numericas = ["REQUERIDA", "INJETADA", "REVERSA", "CONSUMO", "ILUMINACAO_PUBLICA"]
-    for col in colunas_numericas:
-        df_val[col] = pd.to_numeric(df_val[col], errors="coerce")
-        if df_val[col].isna().any():
-            return False, f"A coluna {col} possui valores inválidos."
-        if (df_val[col] < 0).any():
-            return False, f"A coluna {col} não pode ter valores negativos."
-
-    if df_val["INSTALACAO"].astype(str).str.strip().eq("").any():
-        return False, "A coluna INSTALACAO possui valores vazios."
-
-    if df_val["INSTALACAO"].astype(str).duplicated().any():
-        return False, "Existem instalações duplicadas."
-
-    return True, "ok"
-
-
-@st.cache_data(show_spinner=False)
-def carregar_excel_bytes(file_bytes):
-    df = pd.read_excel(io.BytesIO(file_bytes))
-    df.columns = df.columns.str.strip().str.upper()
-    return df
-
-
-@st.cache_data(show_spinner=False)
-def extrair_dados_pdf_cached(pdf_bytes):
-    reader = PdfReader(io.BytesIO(pdf_bytes))
-    texto = " ".join([(pg.extract_text() or "") for pg in reader.pages[:4]])
-    return extrair_dados_pdf_text(texto)
-
-
-def extrair_dados_pdf(pdf_bytes):
-    try:
-        return extrair_dados_pdf_cached(pdf_bytes)
-    except Exception as exc:
-        return {"ok": False, "erro": f"Falha ao ler PDF: {exc}"}
-
-
-def montar_tabela_referencias_pdf(pdf_info):
-    linhas = []
-    for idx, ref in enumerate(pdf_info["refs"]):
-        linha = {"REFERENCIA": ref}
-        for campo, serie in pdf_info["metricas"].items():
-            if idx < len(serie):
-                linha[campo] = float(serie[idx])
-            else:
-                linha[campo] = None
-        linhas.append(linha)
-    return pd.DataFrame(linhas)
-
-
-def montar_export_resultado(df_res):
-    df_export = df_res.copy()
-
-    mapa_legado = {
-        "PERDA_%_ATUAL": "PERDA_%",
-        "PERDA_KWH": "PERDA_(kWh)",
-        "RED_MIN_CURVA_KWH": "RED_MIN_EFICIÊNCIA",
-        "RED_PARA_10%_KWH": "RED_PARA_ADEQUADA",
-        "RED_NECESSARIA_KWH": "RED_NECESSÁRIA",
-    }
-
-    for novo, legado in mapa_legado.items():
-        if novo in df_export.columns and legado not in df_export.columns:
-            df_export[legado] = df_export[novo]
-
-    return df_export
-
-
-@st.cache_data(show_spinner=False)
-def processar_resultados(df_input):
-    df = df_input.copy()
-    resultados = []
-
-    for _, row in df.iterrows():
-        total = row["REQUERIDA"] + row["INJETADA"]
-
-        perda = (
-            row["REQUERIDA"]
-            + row["INJETADA"]
-            - row["REVERSA"]
-            - row["CONSUMO"]
-            - row["ILUMINACAO_PUBLICA"]
-        )
-        perda = max(0, perda)
-
-        if total == 0:
-            continue
-
-        # =========================
-        # PERDA ATUAL
-        # =========================
-        
-        perda_pct = perda / total
-        faixa = math.ceil(perda_pct * 100)
-        faixa = min(max(faixa, 0), max(curva.keys()))
-        meta_pp = curva.get(faixa, 0)
-
-        perda_pct_alvo = max(0, (perda_pct * 100 - meta_pp) / 100)
-        perda_alvo_curva_kwh = perda_pct_alvo * total
-
-        red_min = perda - perda_alvo_curva_kwh
-        perda_10_kwh = 0.10 * total
-        red_10 = max(0, perda - perda_10_kwh)
-        red_total = max(red_min, red_10)
-
-        # =========================
-        # PLANO DE AÇÃO
-        # =========================
-        ganho = 0
-        acoes = [
-            ("Inclusoes", 150),
-            ("Cod100", 120),
-            ("Exclusoes", -100),
-            ("Cod200", 100),
-            ("Cod300", 30),
-        ]
-
-        acoes.sort(key=lambda x: x[1], reverse=True)
-
-        for _, impacto in acoes:
-            if ganho >= red_total:
-                break
-            if impacto <= 0:
-                continue
-            qtd = math.ceil((red_total - ganho) / impacto)
-            ganho += qtd * impacto
-
-        perda_final = max(0, perda - ganho)
-
-        resultados.append(
-            {
-                "INSTALACAO": row["INSTALACAO"],
-                "PERDA_%_ATUAL": round(perda_pct * 100, 2),
-                "PERDA_KWH": round(perda, 2),
-                "PERDA_ALVO_CURVA_%": round(perda_pct_alvo * 100, 2),
-                "PERDA_ALVO_CURVA_KWH": round(perda_alvo_curva_kwh, 2),
-                "RED_MIN_CURVA_KWH": round(red_min, 2),
-                "RED_PARA_10%_KWH": round(red_10, 2),
-                "RED_NECESSARIA_KWH": round(red_total, 2),
-                "PERDA_POS_ACAO_KWH": round(perda_final, 2),
-            }
-        )
-
-    return pd.DataFrame(resultados)
-
-
-def atualizar_base_entrada(df_novo, assinatura):
-    """Atualiza a base e invalida resultados apenas quando a entrada mudar."""
-    if st.session_state.last_input_signature != assinatura:
-        st.session_state.df = df_novo
-        st.session_state.df_res = None
-        st.session_state.run_analysis_requested = False
-        st.session_state.last_input_signature = assinatura
-
-
-entrada_ok = st.session_state.df is not None or not st.session_state.df_manual.empty
-analise_ok = st.session_state.df_res is not None
-
-st.markdown(
-    f"""
+    st.markdown(
+        f"""
 <div class="status-grid">
     <div class="status-card">
         <strong>Etapa 1</strong>
@@ -905,30 +821,37 @@ st.markdown(
     </div>
 </div>
 """,
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
 
-st.markdown('<p class="helper-text">Navegue entre as etapas pelas abas abaixo.</p>', unsafe_allow_html=True)
-tab_entrada, tab_resultados, tab_simulacao = st.tabs(["1. Entrada", "2. Resultados", "3. Simulação"])
 
-with tab_entrada:
-    st.markdown('<p class="section-label">Input dos dados</p>', unsafe_allow_html=True)
-    st.markdown('<p class="helper-text">Escolha como deseja montar a base para análise.</p>', unsafe_allow_html=True)
+def render_module_shell(title: str, subtitle: str, css_class: str = "module-shell") -> None:
     st.markdown(
-        """
-<div class="module-shell">
-    <p class="module-title">Módulo de Entrada</p>
-    <p class="module-subtitle">Validação robusta para garantir qualidade dos dados antes do cálculo.</p>
+        f"""
+<div class="{css_class}">
+    <p class="module-title">{title}</p>
+    <p class="module-subtitle">{subtitle}</p>
 </div>
 """,
         unsafe_allow_html=True,
     )
 
-    modo = st.radio("Modo de entrada", ["Upload de Arquivo", "Manual"], horizontal=True)
 
-    if modo == "Upload de Arquivo":
-        st.markdown(
-            """
+def render_input_tab() -> None:
+    st.markdown('<p class="section-label">Input dos dados</p>', unsafe_allow_html=True)
+    st.markdown('<p class="helper-text">Escolha como deseja montar a base para análise.</p>', unsafe_allow_html=True)
+    render_module_shell("Módulo de Entrada", "Validação robusta para garantir qualidade dos dados antes do cálculo.")
+
+    input_mode = st.radio("Modo de entrada", ["Upload de Arquivo", "Manual"], horizontal=True)
+    if input_mode == "Upload de Arquivo":
+        render_upload_input()
+    else:
+        render_manual_input()
+
+
+def render_upload_input() -> None:
+    st.markdown(
+        """
 <div class="info-box">
     <strong>Arquivos aceitos</strong><br/>
     Excel (.xlsx) ou PDF de Medição Fiscal.<br/><br/>
@@ -936,228 +859,230 @@ with tab_entrada:
     INSTALACAO · REQUERIDA · INJETADA · REVERSA · CONSUMO · ILUMINACAO_PUBLICA
 </div>
 """,
-            unsafe_allow_html=True,
-        )
+        unsafe_allow_html=True,
+    )
 
-        file = st.file_uploader("Arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"])
-        if file:
-            file_bytes = file.getvalue()
-            nome = file.name.lower()
-            if nome.endswith(".xlsx"):
-                df_upload = carregar_excel_bytes(file_bytes)
-                ok, msg = validar_dataframe(df_upload)
+    uploaded_file = st.file_uploader("Arquivo (.xlsx ou .pdf)", type=["xlsx", "pdf"])
+    if not uploaded_file:
+        return
 
-                if not ok:
-                    st.error(msg)
-                    st.session_state.df = None
-                    st.session_state.df_res = None
-                    st.session_state.run_analysis_requested = False
-                else:
-                    st.success(f"Arquivo carregado com sucesso. Registros encontrados: {len(df_upload)}")
-                    assinatura = f"excel::{file.name}::{len(df_upload)}::{','.join(df_upload.columns)}"
-                    atualizar_base_entrada(df_upload, assinatura)
-
-                    with st.expander("Pré-visualizar dados carregados"):
-                        st.dataframe(df_upload.head(10), use_container_width=True)
-
-                    if st.button("Rodar análise", key="btn_rodar_upload", use_container_width=True, type="primary"):
-                        st.session_state.run_analysis_requested = True
-                        st.session_state.pending_tab_index = 1
-                        st.rerun()
-            else:
-                pdf_info = extrair_dados_pdf(file_bytes)
-                if not pdf_info["ok"]:
-                    st.error(pdf_info["erro"])
-                else:
-                    refs = pdf_info["refs"]
-                    ref_padrao = "Média" if "Média" in refs else refs[-1]
-                    idx_padrao = refs.index(ref_padrao)
-                    ref_escolhida = st.selectbox(
-                        "Referência para extração dos dados do PDF",
-                        refs,
-                        index=idx_padrao,
-                        key="pdf_ref_escolhida",
-                    )
-
-                    st.markdown('<p class="helper-text">Conferência visual dos valores extraídos por referência.</p>', unsafe_allow_html=True)
-                    st.dataframe(montar_tabela_referencias_pdf(pdf_info), use_container_width=True, hide_index=True)
-
-                    df_pdf = montar_df_a_partir_pdf(pdf_info, ref_escolhida)
-                    ok, msg = validar_dataframe(df_pdf)
-                    if not ok:
-                        st.error(msg)
-                    else:
-                        df_pdf["INSTALACAO"] = df_pdf["INSTALACAO"].astype(str)
-                        st.success(
-                            f"PDF lido com sucesso para instalação {df_pdf.iloc[0]['INSTALACAO']} usando referência: {ref_escolhida}"
-                        )
-                        with st.expander("Pré-visualizar dados extraídos do PDF"):
-                            st.dataframe(df_pdf, use_container_width=True)
-
-                        assinatura = f"pdf::{file.name}::{ref_escolhida}::{df_pdf.iloc[0]['INSTALACAO']}"
-                        atualizar_base_entrada(df_pdf, assinatura)
-
-                        if st.button("Rodar análise", key="btn_rodar_upload_pdf", use_container_width=True, type="primary"):
-                            st.session_state.run_analysis_requested = True
-                            st.session_state.pending_tab_index = 1
-                            st.rerun()
-
+    file_bytes = uploaded_file.getvalue()
+    if uploaded_file.name.lower().endswith(".xlsx"):
+        handle_excel_upload(uploaded_file.name, file_bytes)
     else:
-        st.markdown('<p class="section-label">Nova instalação</p>', unsafe_allow_html=True)
-        st.markdown('<p class="helper-text">Preencha os campos e clique em adicionar para montar sua base.</p>', unsafe_allow_html=True)
-        st.markdown(
-            f'<span class="counter-chip">Instalações inseridas: {len(st.session_state.df_manual)}</span>',
-            unsafe_allow_html=True,
-        )
+        handle_pdf_upload(uploaded_file.name, file_bytes)
 
-        with st.form("form_nova_instalacao", clear_on_submit=False):
-            col1, col2 = st.columns(2)
 
-            with col1:
-                inst = st.text_input("Instalação MF", placeholder="Ex: 123456789")
-                requerida = st.number_input("Requerida", min_value=0.0, step=500.0, key="in_req")
-                injetada = st.number_input("Injetada", min_value=0.0, step=500.0, key="in_inj")
+def handle_excel_upload(filename: str, file_bytes: bytes) -> None:
+    df_upload = load_excel_bytes(file_bytes)
+    validation = validate_dataframe(df_upload)
+    if not validation.ok:
+        st.error(validation.message)
+        reset_loaded_analysis()
+        return
 
-            with col2:
-                reversa = st.number_input("Reversa", min_value=0.0, step=500.0, key="in_rev")
-                consumo = st.number_input("Consumo", min_value=0.0, step=500.0, key="in_con")
-                iluminacao = st.number_input("Iluminação Pública", min_value=0.0, step=500.0, key="in_ilu")
+    st.success(f"Arquivo carregado com sucesso. Registros encontrados: {len(df_upload)}")
+    signature = f"excel::{filename}::{len(df_upload)}::{','.join(df_upload.columns)}"
+    update_input_base(df_upload, signature)
 
-            col_add, col_clear = st.columns(2)
-            with col_add:
-                adicionar = st.form_submit_button("Adicionar instalação")
-            with col_clear:
-                limpar = st.form_submit_button("Limpar tudo")
+    with st.expander("Pré-visualizar dados carregados"):
+        st.dataframe(df_upload.head(10), use_container_width=True)
 
-        if adicionar:
-            inst_txt = str(inst).strip()
-            if not inst_txt:
-                st.warning("Informe a instalação antes de adicionar.")
-            elif (
-                not st.session_state.df_manual.empty
-                and inst_txt in st.session_state.df_manual["INSTALACAO"].astype(str).values
-            ):
-                st.warning("Esta instalação já existe na lista manual.")
-            else:
-                nova = pd.DataFrame(
-                    [
-                        {
-                            "INSTALACAO": inst_txt,
-                            "REQUERIDA": requerida,
-                            "INJETADA": injetada,
-                            "REVERSA": reversa,
-                            "CONSUMO": consumo,
-                            "ILUMINACAO_PUBLICA": iluminacao,
-                        }
-                    ]
-                )
-                st.session_state.df_manual = pd.concat([st.session_state.df_manual, nova], ignore_index=True)
-                st.session_state.df_res = None
-                st.success("Instalação adicionada à lista.")
+    if st.button("Rodar análise", key="btn_rodar_upload", use_container_width=True, type="primary"):
+        request_analysis()
 
-        if limpar:
-            st.session_state.df_manual = st.session_state.df_manual.iloc[0:0]
-            st.session_state.df = None
+
+def handle_pdf_upload(filename: str, file_bytes: bytes) -> None:
+    pdf_info = extract_pdf_data(file_bytes)
+    if not pdf_info["ok"]:
+        st.error(pdf_info["erro"])
+        return
+
+    refs = pdf_info["refs"]
+    default_reference = "Média" if "Média" in refs else refs[-1]
+    selected_reference = st.selectbox(
+        "Referência para extração dos dados do PDF",
+        refs,
+        index=refs.index(default_reference),
+        key="pdf_ref_escolhida",
+    )
+
+    st.markdown(
+        '<p class="helper-text">Conferência visual dos valores extraídos por referência.</p>',
+        unsafe_allow_html=True,
+    )
+    st.dataframe(build_pdf_reference_table(pdf_info), use_container_width=True, hide_index=True)
+
+    df_pdf = build_pdf_dataframe(pdf_info, selected_reference)
+    validation = validate_dataframe(df_pdf)
+    if not validation.ok:
+        st.error(validation.message)
+        return
+
+    st.success(
+        f"PDF lido com sucesso para instalação {df_pdf.iloc[0]['INSTALACAO']} "
+        f"usando referência: {selected_reference}"
+    )
+    with st.expander("Pré-visualizar dados extraídos do PDF"):
+        st.dataframe(df_pdf, use_container_width=True)
+
+    signature = f"pdf::{filename}::{selected_reference}::{df_pdf.iloc[0]['INSTALACAO']}"
+    update_input_base(df_pdf, signature)
+    if st.button("Rodar análise", key="btn_rodar_upload_pdf", use_container_width=True, type="primary"):
+        request_analysis()
+
+
+def reset_loaded_analysis() -> None:
+    st.session_state.df = None
+    st.session_state.df_res = None
+    st.session_state.run_analysis_requested = False
+
+
+def render_manual_input() -> None:
+    st.markdown('<p class="section-label">Nova instalação</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="helper-text">Preencha os campos e clique em adicionar para montar sua base.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f'<span class="counter-chip">Instalações inseridas: {len(st.session_state.df_manual)}</span>',
+        unsafe_allow_html=True,
+    )
+
+    manual_entry = render_manual_form()
+    if manual_entry["add"]:
+        add_manual_installation(manual_entry)
+    if manual_entry["clear"]:
+        clear_manual_installations()
+
+    if not st.session_state.df_manual.empty:
+        render_manual_table()
+
+
+def render_manual_form() -> dict:
+    with st.form("form_nova_instalacao", clear_on_submit=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            installation = st.text_input("Instalação MF", placeholder="Ex: 123456789")
+            requerida = st.number_input("Requerida", min_value=0.0, step=500.0, key="in_req")
+            injetada = st.number_input("Injetada", min_value=0.0, step=500.0, key="in_inj")
+        with col2:
+            reversa = st.number_input("Reversa", min_value=0.0, step=500.0, key="in_rev")
+            consumo = st.number_input("Consumo", min_value=0.0, step=500.0, key="in_con")
+            iluminacao = st.number_input("Iluminação Pública", min_value=0.0, step=500.0, key="in_ilu")
+
+        col_add, col_clear = st.columns(2)
+        with col_add:
+            add = st.form_submit_button("Adicionar instalação")
+        with col_clear:
+            clear = st.form_submit_button("Limpar tudo")
+
+    return {
+        "add": add,
+        "clear": clear,
+        "INSTALACAO": str(installation).strip(),
+        "REQUERIDA": requerida,
+        "INJETADA": injetada,
+        "REVERSA": reversa,
+        "CONSUMO": consumo,
+        "ILUMINACAO_PUBLICA": iluminacao,
+    }
+
+
+def add_manual_installation(entry: dict) -> None:
+    installation = entry["INSTALACAO"]
+    if not installation:
+        st.warning("Informe a instalação antes de adicionar.")
+        return
+
+    existing = st.session_state.df_manual["INSTALACAO"].astype(str).values
+    if not st.session_state.df_manual.empty and installation in existing:
+        st.warning("Esta instalação já existe na lista manual.")
+        return
+
+    new_row = pd.DataFrame([{column: entry[column] for column in REQUIRED_COLUMNS}])
+    st.session_state.df_manual = pd.concat([st.session_state.df_manual, new_row], ignore_index=True)
+    st.session_state.df_res = None
+    st.success("Instalação adicionada à lista.")
+
+
+def clear_manual_installations() -> None:
+    st.session_state.df_manual = st.session_state.df_manual.iloc[0:0]
+    reset_loaded_analysis()
+    st.info("Lista manual limpa.")
+
+
+def render_manual_table() -> None:
+    st.markdown('<p class="section-label">Instalações inseridas</p>', unsafe_allow_html=True)
+    editor_df = st.data_editor(
+        st.session_state.df_manual,
+        use_container_width=True,
+        hide_index=True,
+        num_rows="fixed",
+        key="manual_editor",
+    )
+    editor_df = normalize_columns(editor_df)
+    st.markdown('<p class="helper-text">Gerencie a base manual e rode a análise.</p>', unsafe_allow_html=True)
+
+    options = editor_df["INSTALACAO"].astype(str).tolist()
+    _, center_col, _ = st.columns([1, 1.8, 1])
+    with center_col:
+        selected_installation = st.selectbox("Remover instalação", options, key="inst_remover")
+
+    col_remove, col_run = st.columns(2)
+    with col_remove:
+        if st.button("Remover selecionada", key="btn_remover", use_container_width=True, type="secondary"):
+            st.session_state.df_manual = editor_df[
+                editor_df["INSTALACAO"].astype(str) != str(selected_installation)
+            ].reset_index(drop=True)
             st.session_state.df_res = None
             st.session_state.run_analysis_requested = False
-            st.info("Lista manual limpa.")
+            st.success("Instalação removida.")
 
-        if not st.session_state.df_manual.empty:
-            st.markdown('<p class="section-label">Instalações inseridas</p>', unsafe_allow_html=True)
-
-            editor_df = st.data_editor(
-                st.session_state.df_manual,
-                use_container_width=True,
-                hide_index=True,
-                num_rows="fixed",
-                key="manual_editor",
-            )
-            editor_df.columns = editor_df.columns.str.strip().str.upper()
-
-            st.markdown('<p class="helper-text">Gerencie a base manual e rode a análise.</p>', unsafe_allow_html=True)
-
-            opcoes_inst = editor_df["INSTALACAO"].astype(str).tolist()
-            _, col_centro, _ = st.columns([1, 1.8, 1])
-            with col_centro:
-                inst_remover = st.selectbox("Remover instalação", opcoes_inst, key="inst_remover")
-
-            b_remove, b_run = st.columns(2)
-            with b_remove:
-                if st.button("Remover selecionada", key="btn_remover", use_container_width=True, type="secondary"):
-                    st.session_state.df_manual = editor_df[
-                        editor_df["INSTALACAO"].astype(str) != str(inst_remover)
-                    ].reset_index(drop=True)
-                    st.session_state.df_res = None
-                    st.session_state.run_analysis_requested = False
-                    st.success("Instalação removida.")
-
-            with b_run:
-                if st.button("Rodar análise", key="btn_rodar_manual", use_container_width=True, type="primary"):
-                    base_manual = editor_df.copy()
-                    ok, msg = validar_dataframe(base_manual)
-                    if ok:
-                        st.session_state.df_manual = base_manual
-                        st.session_state.df = base_manual.copy()
-                        st.session_state.df_res = None
-                        st.session_state.run_analysis_requested = True
-                        st.session_state.last_input_signature = f"manual::{len(base_manual)}"
-                        st.session_state.pending_tab_index = 1
-                        st.rerun()
-                    else:
-                        st.error(msg)
+    with col_run:
+        if st.button("Rodar análise", key="btn_rodar_manual", use_container_width=True, type="primary"):
+            run_manual_analysis(editor_df)
 
 
-if (
-    st.session_state.df is not None
-    and st.session_state.df_res is None
-    and st.session_state.run_analysis_requested
-):
-    df = st.session_state.df.copy()
-    df.columns = df.columns.str.strip().str.upper()
-    if "INSTALACAO" in df.columns:
-        df["INSTALACAO"] = df["INSTALACAO"].astype(str)
-    st.session_state.df = df
+def run_manual_analysis(editor_df: pd.DataFrame) -> None:
+    validation = validate_dataframe(editor_df)
+    if not validation.ok:
+        st.error(validation.message)
+        return
 
-    st.session_state.df_res = processar_resultados(df)
-    st.session_state.run_analysis_requested = False
+    st.session_state.df_manual = editor_df
+    st.session_state.df = editor_df.copy()
+    st.session_state.df_res = None
+    st.session_state.run_analysis_requested = True
+    st.session_state.last_input_signature = f"manual::{len(editor_df)}"
     st.session_state.pending_tab_index = 1
     st.rerun()
 
 
-ganho_inc = 150.0
-ganho_c100 = 120.0
-ganho_exc = 100.0
-ganho_c200 = 100.0
-ganho_c300 = 30.0
-
-
-with tab_resultados:
+def render_results_tab() -> None:
     if st.session_state.df_res is None:
         st.info("A etapa de resultados será habilitada após rodar a análise na aba Entrada.")
-    else:
-        df_res = st.session_state.df_res
+        return
 
-        if df_res.empty:
-            st.warning(
-                "A análise foi concluída, mas nenhum resultado válido foi gerado. "
-                "Revise os dados de entrada e os critérios de processamento na aba Entrada."
-            )
-        else:
-            df_ranked = df_res.sort_values("PERDA_%_ATUAL", ascending=False).reset_index(drop=True)
+    df_res = st.session_state.df_res
+    if df_res.empty:
+        st.warning(
+            "A análise foi concluída, mas nenhum resultado válido foi gerado. "
+            "Revise os dados de entrada e os critérios de processamento na aba Entrada."
+        )
+        return
 
-            st.markdown('<p class="section-label">Visão geral</p>', unsafe_allow_html=True)
-            st.markdown(
-                """
-<div class="results-shell">
-    <p class="module-title">Resumo operacional</p>
-    <p class="module-subtitle">Priorização automática por maior perda percentual.</p>
-</div>
-""",
-                unsafe_allow_html=True,
-            )
+    df_ranked = df_res.sort_values("PERDA_%_ATUAL", ascending=False).reset_index(drop=True)
+    st.markdown('<p class="section-label">Visão geral</p>', unsafe_allow_html=True)
+    render_module_shell("Resumo operacional", "Priorização automática por maior perda percentual.", "results-shell")
+    render_results_summary(df_ranked)
+    render_results_table(df_ranked)
+    render_export_section(df_ranked)
 
-            st.markdown(
-                f"""
+
+def render_results_summary(df_ranked: pd.DataFrame) -> None:
+    st.markdown(
+        f"""
 <div class="results-grid">
     <div class="results-card">
         <span>Instalações</span>
@@ -1173,310 +1098,359 @@ with tab_resultados:
     </div>
 </div>
 """,
-                unsafe_allow_html=True,
-            )
-
-            st.markdown('<p class="section-label">Ranking por perda</p>', unsafe_allow_html=True)
-            st.markdown('<p class="results-note">Instalações mais críticas aparecem no topo para priorização.</p>', unsafe_allow_html=True)
-            st.markdown('<div class="results-table-shell">', unsafe_allow_html=True)
-            st.dataframe(df_ranked, use_container_width=True, hide_index=True, height=420)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            st.markdown('<p class="section-label">Exportar</p>', unsafe_allow_html=True)
-            st.markdown('<div class="export-shell">', unsafe_allow_html=True)
-            st.markdown('<p class="results-note">Baixe o resultado consolidado da análise.</p>', unsafe_allow_html=True)
-            df_export = montar_export_resultado(df_ranked)
-            st.download_button(
-                "Baixar resultado (.csv)",
-                df_export.to_csv(index=False),
-                "resultado.csv",
-                mime="text/csv",
-                use_container_width=True,
-                type="primary",
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
+        unsafe_allow_html=True,
+    )
 
 
-with tab_simulacao:
+def render_results_table(df_ranked: pd.DataFrame) -> None:
+    st.markdown('<p class="section-label">Ranking por perda</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="results-note">Instalações mais críticas aparecem no topo para priorização.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="results-table-shell">', unsafe_allow_html=True)
+    st.dataframe(df_ranked, use_container_width=True, hide_index=True, height=420)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_export_section(df_ranked: pd.DataFrame) -> None:
+    st.markdown('<p class="section-label">Exportar</p>', unsafe_allow_html=True)
+    st.markdown('<div class="export-shell">', unsafe_allow_html=True)
+    st.markdown('<p class="results-note">Baixe o resultado consolidado da análise.</p>', unsafe_allow_html=True)
+    st.download_button(
+        "Baixar resultado (.csv)",
+        build_export_dataframe(df_ranked).to_csv(index=False),
+        "resultado.csv",
+        mime="text/csv",
+        use_container_width=True,
+        type="primary",
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_simulation_tab() -> None:
     if st.session_state.df_res is None:
         st.warning("A simulação fica disponível após a conclusão da análise na aba Resultados.")
-    else:
-        df_res = st.session_state.df_res.copy()
-        df = st.session_state.df.copy()
+        return
 
-        if "INSTALACAO" not in df_res.columns or "INSTALACAO" not in df.columns:
-            st.error("Base inválida para simulação: coluna INSTALACAO não encontrada.")
-            st.stop()
+    df_res = normalize_instalacao(st.session_state.df_res)
+    df = normalize_instalacao(st.session_state.df)
+    if "INSTALACAO" not in df_res.columns or "INSTALACAO" not in df.columns:
+        st.error("Base inválida para simulação: coluna INSTALACAO não encontrada.")
+        st.stop()
 
-        df_res["INSTALACAO"] = df_res["INSTALACAO"].astype(str)
-        df["INSTALACAO"] = df["INSTALACAO"].astype(str)
+    st.markdown('<p class="section-label">Simulação de ações</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="helper-text">Ajuste ações e acompanhe em tempo real o progresso da meta.</p>',
+        unsafe_allow_html=True,
+    )
+    render_module_shell(
+        "Módulo de Simulação",
+        "Persistência de estado, limpeza segura e semáforo de atingimento.",
+        "sim-shell",
+    )
 
-        st.markdown('<p class="section-label">Simulação de ações</p>', unsafe_allow_html=True)
-        st.markdown('<p class="helper-text">Ajuste ações e acompanhe em tempo real o progresso da meta.</p>', unsafe_allow_html=True)
-        st.markdown(
-            """
-<div class="sim-shell">
-    <p class="module-title">Módulo de Simulação</p>
-    <p class="module-subtitle">Persistência de estado, limpeza segura e semáforo de atingimento.</p>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
+    selected_installation = st.selectbox("Instalação", df_res["INSTALACAO"].tolist())
+    base_row = get_selected_base_row(df, selected_installation)
+    target_gain = get_selected_target_gain(df_res, selected_installation)
+    current_loss = calculate_loss(base_row)
+    render_simulation_context(selected_installation, current_loss, target_gain)
 
-        inst_sel = st.selectbox("Instalação", df_res["INSTALACAO"].tolist())
-        base_rows = df[df["INSTALACAO"] == str(inst_sel)]
-        if base_rows.empty:
-            st.error("Não foi possível localizar os dados de entrada para a instalação selecionada.")
-            st.stop()
-        base = base_rows.iloc[0]
+    gain_total = render_simulation_controls()
+    result = calculate_simulation_result(current_loss, target_gain, gain_total)
+    render_simulation_progress(result)
+    render_simulation_metrics(result)
 
-        perda = (
-            base["REQUERIDA"]
-            + base["INJETADA"]
-            - base["REVERSA"]
-            - base["CONSUMO"]
-            - base["ILUMINACAO_PUBLICA"]
-        )
-        red_series = df_res[df_res["INSTALACAO"] == str(inst_sel)]["RED_MIN_CURVA_KWH"]
-        if red_series.empty:
-            st.error("Não foi possível obter a meta para a instalação selecionada.")
-            st.stop()
-        meta = float(red_series.iloc[0])
 
-        st.markdown(
-            f"""
+def get_selected_base_row(df: pd.DataFrame, selected_installation: str) -> pd.Series:
+    rows = df[df["INSTALACAO"] == str(selected_installation)]
+    if rows.empty:
+        st.error("Não foi possível localizar os dados de entrada para a instalação selecionada.")
+        st.stop()
+    return rows.iloc[0]
+
+
+def get_selected_target_gain(df_res: pd.DataFrame, selected_installation: str) -> float:
+    target_series = df_res[df_res["INSTALACAO"] == str(selected_installation)]["RED_MIN_CURVA_KWH"]
+    if target_series.empty:
+        st.error("Não foi possível obter a meta para a instalação selecionada.")
+        st.stop()
+    return max(0.0, float(target_series.iloc[0]))
+
+
+def render_simulation_context(installation: str, current_loss: float, target_gain: float) -> None:
+    st.markdown(
+        f"""
 <div class="sim-grid">
     <div class="sim-card">
         <span>Instalação selecionada</span>
-        <strong>{inst_sel}</strong>
+        <strong>{installation}</strong>
     </div>
     <div class="sim-card">
         <span>Perda atual</span>
-        <strong>{perda:.2f} kWh</strong>
+        <strong>{current_loss:.2f} kWh</strong>
     </div>
     <div class="sim-card">
-        <span>Meta projetada</span>
-        <strong>{meta:.2f} kWh</strong>
+        <span>Meta de recuperação</span>
+        <strong>{target_gain:.2f} kWh</strong>
     </div>
 </div>
 """,
-            unsafe_allow_html=True,
+        unsafe_allow_html=True,
+    )
+
+
+def render_simulation_controls() -> float:
+    st.markdown('<div class="sim-control-shell">', unsafe_allow_html=True)
+    gain_mode = st.radio(
+        "Modo de cálculo do ganho",
+        ["Valor médio", "Customizar individualmente"],
+        horizontal=True,
+        key="sim_modo_ganho",
+        index=0 if st.session_state.sim_persist_modo == "Valor médio" else 1,
+    )
+    st.session_state.sim_persist_modo = gain_mode
+    st.markdown(
+        '<p class="sim-control-note">Modo médio usa um valor por ação; modo customizado permite valor por ocorrência.</p>',
+        unsafe_allow_html=True,
+    )
+
+    if st.session_state.sim_clear_requested:
+        clear_simulation_controls()
+        st.session_state.sim_clear_requested = False
+
+    st.markdown(
+        '<p class="action-hint">Informe a quantidade de ações planejadas em cada categoria.</p>',
+        unsafe_allow_html=True,
+    )
+    quantities = render_action_quantity_inputs()
+    render_clear_simulation_button()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    return calculate_total_gain(quantities, gain_mode)
+
+
+def render_action_quantity_inputs() -> dict[str, int]:
+    col1, col2 = st.columns(2)
+    with col1:
+        quantities = {
+            "inc": st.number_input("Inclusões", min_value=0, value=int(st.session_state.sim_persist_inc), key="sim_inc"),
+            "c100": st.number_input("Cod 100", min_value=0, value=int(st.session_state.sim_persist_c100), key="sim_c100"),
+            "c200": st.number_input("Cod 200", min_value=0, value=int(st.session_state.sim_persist_c200), key="sim_c200"),
+        }
+    with col2:
+        quantities["exc"] = st.number_input(
+            "Exclusões",
+            min_value=0,
+            value=int(st.session_state.sim_persist_exc),
+            key="sim_exc",
+        )
+        quantities["c300"] = st.number_input(
+            "Cod 300",
+            min_value=0,
+            value=int(st.session_state.sim_persist_c300),
+            key="sim_c300",
         )
 
-        st.markdown('<div class="sim-control-shell">', unsafe_allow_html=True)
-        modo_ganho = st.radio(
-            "Modo de cálculo do ganho",
-            ["Valor médio", "Customizar individualmente"],
-            horizontal=True,
-            key="sim_modo_ganho",
-            index=0 if st.session_state.sim_persist_modo == "Valor médio" else 1,
-        )
-        st.session_state.sim_persist_modo = modo_ganho
+    for action_key, quantity in quantities.items():
+        st.session_state[f"sim_persist_{action_key}"] = int(quantity)
+    return quantities
+
+
+def render_clear_simulation_button() -> None:
+    col_button, col_note = st.columns(2)
+    with col_button:
+        if st.button("Limpar códigos", key="btn_limpar_codigos", type="secondary", use_container_width=True):
+            st.session_state.sim_clear_requested = True
+            st.rerun()
+    with col_note:
         st.markdown(
-            '<p class="sim-control-note">Modo médio usa um valor por ação; modo customizado permite valor por ocorrência.</p>',
+            '<p class="sim-control-note">A limpeza afeta somente os controles da simulação, sem alterar a base de entrada.</p>',
             unsafe_allow_html=True,
         )
 
-        def calcular_ganho(qtd, valor_padrao, acao_key, rotulo):
-            if qtd == 0:
-                return 0
 
-            if modo_ganho == "Valor médio":
-                valor_inicial = float(st.session_state.get(f"sim_persist_{acao_key}_medio", valor_padrao))
-                valor = st.number_input(
-                    f"{rotulo} (kWh por ação)",
-                    min_value=0.0,
-                    value=valor_inicial,
-                    key=f"sim_{acao_key}_medio",
-                )
-                st.session_state[f"sim_persist_{acao_key}_medio"] = float(valor)
-                return qtd * valor
+def calculate_total_gain(quantities: dict[str, int], gain_mode: str) -> float:
+    total = 0.0
+    for action_key, quantity in quantities.items():
+        action_gain = render_action_gain_inputs(action_key, quantity, gain_mode)
+        if action_key == "exc":
+            total -= action_gain
+        else:
+            total += action_gain
+    return total
 
-            ganhos = []
-            with st.expander(f"Detalhar {rotulo}"):
-                for i in range(qtd):
-                    persist_key = f"sim_persist_{acao_key}_{i}"
-                    valor_inicial = float(st.session_state.get(persist_key, valor_padrao))
-                    val = st.number_input(
-                        f"{rotulo} #{i + 1} (kWh)",
-                        min_value=0.0,
-                        value=valor_inicial,
-                        key=f"sim_{acao_key}_{i}",
-                        step=20.0,
-                    )
-                    st.session_state[persist_key] = float(val)
-                    ganhos.append(val)
-            return sum(ganhos)
 
-        def limpar_codigos_simulacao():
-            st.session_state["sim_inc"] = 0
-            st.session_state["sim_c100"] = 0
-            st.session_state["sim_exc"] = 0
-            st.session_state["sim_c200"] = 0
-            st.session_state["sim_c300"] = 0
+def render_action_gain_inputs(action_key: str, quantity: int, gain_mode: str) -> float:
+    if quantity == 0:
+        return 0.0
 
-            st.session_state["sim_persist_inc"] = 0
-            st.session_state["sim_persist_c100"] = 0
-            st.session_state["sim_persist_exc"] = 0
-            st.session_state["sim_persist_c200"] = 0
-            st.session_state["sim_persist_c300"] = 0
-            st.session_state["sim_persist_modo"] = "Valor médio"
+    config = ACTION_DEFAULTS[action_key]
+    if gain_mode == "Valor médio":
+        persist_key = f"sim_persist_{action_key}_medio"
+        initial_value = float(st.session_state.get(persist_key, config["default_gain"]))
+        value = st.number_input(
+            f"{config['label']} (kWh por ação)",
+            min_value=0.0,
+            value=initial_value,
+            key=f"sim_{action_key}_medio",
+        )
+        st.session_state[persist_key] = float(value)
+        return quantity * float(value)
 
-            padroes = {
-                "inc": ganho_inc,
-                "c100": ganho_c100,
-                "exc": ganho_exc,
-                "c200": ganho_c200,
-                "c300": ganho_c300,
-            }
-            for acao_key, valor_padrao in padroes.items():
-                st.session_state[f"sim_{acao_key}_medio"] = float(valor_padrao)
-                st.session_state[f"sim_persist_{acao_key}_medio"] = float(valor_padrao)
-
-            for key in list(st.session_state.keys()):
-                if key.startswith("sim_inc_") and key != "sim_inc_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_c100_") and key != "sim_c100_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_exc_") and key != "sim_exc_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_c200_") and key != "sim_c200_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_c300_") and key != "sim_c300_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_persist_inc_") and key != "sim_persist_inc_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_persist_c100_") and key != "sim_persist_c100_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_persist_exc_") and key != "sim_persist_exc_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_persist_c200_") and key != "sim_persist_c200_medio":
-                    del st.session_state[key]
-                if key.startswith("sim_persist_c300_") and key != "sim_persist_c300_medio":
-                    del st.session_state[key]
-
-        if st.session_state.sim_clear_requested:
-            limpar_codigos_simulacao()
-            st.session_state.sim_clear_requested = False
-
-        st.markdown('<p class="action-hint">Informe a quantidade de ações planejadas em cada categoria.</p>', unsafe_allow_html=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            inc = st.number_input("Inclusões", min_value=0, value=int(st.session_state.sim_persist_inc), key="sim_inc")
-            c100 = st.number_input("Cod 100", min_value=0, value=int(st.session_state.sim_persist_c100), key="sim_c100")
-            c200 = st.number_input("Cod 200", min_value=0, value=int(st.session_state.sim_persist_c200), key="sim_c200")
-        with col2:
-            exc = st.number_input("Exclusões", min_value=0, value=int(st.session_state.sim_persist_exc), key="sim_exc")
-            c300 = st.number_input("Cod 300", min_value=0, value=int(st.session_state.sim_persist_c300), key="sim_c300")
-
-        st.session_state.sim_persist_inc = int(inc)
-        st.session_state.sim_persist_c100 = int(c100)
-        st.session_state.sim_persist_c200 = int(c200)
-        st.session_state.sim_persist_exc = int(exc)
-        st.session_state.sim_persist_c300 = int(c300)
-
-        b1, b2 = st.columns(2)
-        with b1:
-            if st.button("Limpar códigos", key="btn_limpar_codigos", type="secondary", use_container_width=True):
-                st.session_state.sim_clear_requested = True
-                st.rerun()
-        with b2:
-            st.markdown(
-                '<p class="sim-control-note">A limpeza afeta somente os controles da simulação, sem alterar a base de entrada.</p>',
-                unsafe_allow_html=True,
+    values = []
+    with st.expander(f"Detalhar {config['label']}"):
+        for idx in range(quantity):
+            persist_key = f"sim_persist_{action_key}_{idx}"
+            initial_value = float(st.session_state.get(persist_key, config["default_gain"]))
+            value = st.number_input(
+                f"{config['label']} #{idx + 1} (kWh)",
+                min_value=0.0,
+                value=initial_value,
+                key=f"sim_{action_key}_{idx}",
+                step=20.0,
             )
+            st.session_state[persist_key] = float(value)
+            values.append(value)
+    return float(sum(values))
 
-        st.markdown('</div>', unsafe_allow_html=True)
 
-        ganho_total = (
-            calcular_ganho(inc, ganho_inc, "inc", "Inclusões")
-            + calcular_ganho(c100, ganho_c100, "c100", "Cod 100")
-            - calcular_ganho(exc, ganho_exc, "exc", "Exclusões")
-            + calcular_ganho(c200, ganho_c200, "c200", "Cod 200")
-            + calcular_ganho(c300, ganho_c300, "c300", "Cod 300")
-        )
+def clear_simulation_controls() -> None:
+    for action_key, config in ACTION_DEFAULTS.items():
+        st.session_state[f"sim_{action_key}"] = 0
+        st.session_state[f"sim_persist_{action_key}"] = 0
+        st.session_state[f"sim_{action_key}_medio"] = float(config["default_gain"])
+        st.session_state[f"sim_persist_{action_key}_medio"] = float(config["default_gain"])
+    st.session_state["sim_persist_modo"] = "Valor médio"
 
-        perda_proj = max(0.0, perda - ganho_total)
-        perda_alvo = float(red_series.iloc[0])
-        meta_ganho = max(0.0, perda_alvo)
-        reducao_obtida = max(0.0, ganho_total)
-        
-        if meta_ganho == 0:
-            atingimento = 100.0
-        else:
-            atingimento = max(0.0, (reducao_obtida / meta_ganho) * 100)
-        atingimento_barra = min(atingimento, 100.0)
+    prefixes_to_clean = tuple(f"sim_{key}_" for key in ACTION_DEFAULTS) + tuple(
+        f"sim_persist_{key}_" for key in ACTION_DEFAULTS
+    )
+    protected = {f"sim_{key}_medio" for key in ACTION_DEFAULTS} | {
+        f"sim_persist_{key}_medio" for key in ACTION_DEFAULTS
+    }
+    for key in list(st.session_state.keys()):
+        if key.startswith(prefixes_to_clean) and key not in protected:
+            del st.session_state[key]
 
-        if atingimento < 90:
-            classe_badge = "sim-badge sim-badge-critico"
-            texto_badge = "Crítico"
-            cor_barra = "#ef4444"
-        elif atingimento < 100:
-            classe_badge = "sim-badge sim-badge-atencao"
-            texto_badge = "Meta próxima"
-            cor_barra = "#f59e0b"
-        else:
-            classe_badge = "sim-badge sim-badge-ok"
-            texto_badge = "Meta atingida"
-            cor_barra = "#22c55e"
 
-        st.markdown(f'<div class="{classe_badge}">Status da simulação: {texto_badge}</div>', unsafe_allow_html=True)
+def calculate_simulation_result(current_loss: float, target_gain: float, total_gain: float) -> SimulationResult:
+    gain_done = max(0.0, total_gain)
+    if target_gain == 0:
+        achievement = 100.0
+    else:
+        achievement = max(0.0, (gain_done / target_gain) * 100)
 
-        st.markdown(
-            f"""
+    return SimulationResult(
+        perda_atual=current_loss,
+        perda_projetada=max(0.0, current_loss - total_gain),
+        meta_ganho=target_gain,
+        ganho_realizado=gain_done,
+        atingimento=achievement,
+        atingimento_barra=min(achievement, 100.0),
+    )
+
+
+def simulation_status(result: SimulationResult) -> tuple[str, str, str]:
+    if result.atingimento < 90:
+        return "sim-badge sim-badge-critico", "Crítico", "#ef4444"
+    if result.atingimento < 100:
+        return "sim-badge sim-badge-atencao", "Meta próxima", "#f59e0b"
+    return "sim-badge sim-badge-ok", "Meta atingida", "#22c55e"
+
+
+def render_simulation_progress(result: SimulationResult) -> None:
+    badge_class, badge_text, bar_color = simulation_status(result)
+    st.markdown(
+        f'<div class="{badge_class}">Status da simulação: {badge_text}</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"""
 <div class="sim-progress-wrap">
     <div class="sim-progress-head">
         <span>Progresso para meta da instalação selecionada</span>
-        <strong>{atingimento:.1f}%</strong>
+        <strong>{result.atingimento:.1f}%</strong>
     </div>
     <div class="sim-progress-track">
-        <div class="sim-progress-fill" style="width:{atingimento_barra:.1f}%; background:{cor_barra};"></div>
+        <div class="sim-progress-fill" style="width:{result.atingimento_barra:.1f}%; background:{bar_color};"></div>
     </div>
 </div>
 """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_simulation_metrics(result: SimulationResult) -> None:
+    st.markdown('<p class="section-label">Resultado projetado</p>', unsafe_allow_html=True)
+    col_gain, col_projected_loss, col_target = st.columns(3)
+    col_gain.metric("Ganho", f"{result.ganho_realizado:.2f}")
+    col_projected_loss.metric("Perda Projetada", f"{result.perda_projetada:.2f}")
+    col_target.metric("Meta", f"{result.meta_ganho:.2f}")
+
+    if result.meta_atingida:
+        st.markdown('<div class="sim-result-ok">Meta atingida</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f'<div class="sim-result-fail">Faltam {result.falta_para_meta:.2f} kWh para atingir a meta</div>',
             unsafe_allow_html=True,
         )
 
-        st.markdown('<p class="section-label">Resultado projetado</p>', unsafe_allow_html=True)
-        r1, r2, r3 = st.columns(3)
-        r1.metric("Ganho", f"{ganho_total:.2f}")
-        r2.metric("Perda Projetada", f"{perda_proj:.2f}")
-        r3.metric("Meta", f"{meta_ganho:.2f}")
 
-        if reducao_obtida >= meta_ganho:
-            st.markdown('<div class="sim-result-ok">Meta atingida</div>', unsafe_allow_html=True)
-        else:
-            falta = meta_ganho - reducao_obtida
-            st.markdown(
-                f'<div class="sim-result-fail">Faltam {falta:.2f} kWh para atingir a meta</div>',
-                unsafe_allow_html=True,
-            )
+def click_pending_tab() -> None:
+    if st.session_state.pending_tab_index is None:
+        return
 
-# Clica automaticamente na aba pendente (ex.: após Rodar análise).
-if st.session_state.pending_tab_index is not None:
-        target_idx = int(st.session_state.pending_tab_index)
-        components.html(
-                f"""
-                <script>
-                const target = {target_idx};
-                const clickTab = () => {{
-                    const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
-                    if (tabs && tabs.length > target) {{
-                        tabs[target].click();
-                        return true;
-                    }}
-                    return false;
-                }};
-                if (!clickTab()) {{
-                    let tries = 0;
-                    const timer = setInterval(() => {{
-                        tries += 1;
-                        if (clickTab() || tries > 20) clearInterval(timer);
-                    }}, 120);
-                }}
-                </script>
-                """,
-                height=0,
-        )
-        st.session_state.pending_tab_index = None
+    target_idx = int(st.session_state.pending_tab_index)
+    components.html(
+        f"""
+        <script>
+        const target = {target_idx};
+        const clickTab = () => {{
+            const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+            if (tabs && tabs.length > target) {{
+                tabs[target].click();
+                return true;
+            }}
+            return false;
+        }};
+        if (!clickTab()) {{
+            let tries = 0;
+            const timer = setInterval(() => {{
+                tries += 1;
+                if (clickTab() || tries > 20) clearInterval(timer);
+            }}, 120);
+        }}
+        </script>
+        """,
+        height=0,
+    )
+    st.session_state.pending_tab_index = None
+
+
+def main() -> None:
+    render_css()
+    init_session_state()
+    render_header()
+    render_step_cards()
+    render_status_cards()
+
+    st.markdown('<p class="helper-text">Navegue entre as etapas pelas abas abaixo.</p>', unsafe_allow_html=True)
+    tab_input, tab_results, tab_simulation = st.tabs(["1. Entrada", "2. Resultados", "3. Simulação"])
+
+    with tab_input:
+        render_input_tab()
+
+    run_pending_analysis()
+
+    with tab_results:
+        render_results_tab()
+
+    with tab_simulation:
+        render_simulation_tab()
+
+    click_pending_tab()
+
+
+if __name__ == "__main__":
+    main()
