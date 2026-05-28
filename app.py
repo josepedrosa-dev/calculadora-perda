@@ -1,7 +1,11 @@
 import io
+import os
 import math
 import re
+import uuid
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -13,6 +17,17 @@ APP_TITLE = "Calculadora de Recuperação de Energia"
 APP_SUBTITLE = "Calculadora de impacto operacional"
 AUTHOR_NAME = "José Pedrosa"
 AUTHOR_EMAIL = "jose.peronico@equatorialenergia.com.br"
+USAGE_LOG_PATH = Path(__file__).with_name("usage_events.csv")
+USAGE_EVENT_COLUMNS = [
+    "timestamp",
+    "session_id",
+    "user_id",
+    "user_name",
+    "user_area",
+    "is_admin",
+    "event_type",
+    "details",
+]
 
 REQUIRED_COLUMNS = [
     "INSTALACAO",
@@ -458,6 +473,10 @@ def init_session_state() -> None:
         "last_input_signature": None,
         "sim_clear_requested": False,
         "sim_persist_modo": "Valor médio",
+        "usage_user": None,
+        "usage_session_id": None,
+        "simulation_view_logged": False,
+        "usage_dashboard_logged": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -469,6 +488,138 @@ def init_session_state() -> None:
     for action_key, config in ACTION_DEFAULTS.items():
         st.session_state.setdefault(f"sim_persist_{action_key}", 0)
         st.session_state.setdefault(f"sim_persist_{action_key}_medio", config["default_gain"])
+
+
+def get_admin_password() -> str:
+    try:
+        secret_password = st.secrets.get("ADMIN_PASSWORD")
+        if secret_password:
+            return str(secret_password)
+    except Exception:
+        pass
+    return os.environ.get("ADMIN_PASSWORD", "admin")
+
+
+def current_user() -> dict | None:
+    return st.session_state.get("usage_user")
+
+
+def current_user_is_admin() -> bool:
+    user = current_user()
+    return bool(user and user.get("is_admin"))
+
+
+def ensure_usage_session_id() -> str:
+    if not st.session_state.get("usage_session_id"):
+        st.session_state.usage_session_id = uuid.uuid4().hex
+    return st.session_state.usage_session_id
+
+
+def append_usage_event(event_type: str, details: str = "") -> None:
+    user = current_user() or {}
+    event = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "session_id": ensure_usage_session_id(),
+        "user_id": user.get("identifier", ""),
+        "user_name": user.get("name", ""),
+        "user_area": user.get("area", ""),
+        "is_admin": bool(user.get("is_admin", False)),
+        "event_type": event_type,
+        "details": details,
+    }
+    file_exists = USAGE_LOG_PATH.exists()
+    try:
+        pd.DataFrame([event], columns=USAGE_EVENT_COLUMNS).to_csv(
+            USAGE_LOG_PATH,
+            mode="a",
+            header=not file_exists,
+            index=False,
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        st.warning(f"Não foi possível registrar o evento de uso: {exc}")
+
+
+def load_usage_events() -> pd.DataFrame:
+    if not USAGE_LOG_PATH.exists():
+        return pd.DataFrame(columns=USAGE_EVENT_COLUMNS)
+
+    events = pd.read_csv(USAGE_LOG_PATH, encoding="utf-8")
+    for column in USAGE_EVENT_COLUMNS:
+        if column not in events.columns:
+            events[column] = ""
+    events = events[USAGE_EVENT_COLUMNS]
+    events["timestamp"] = pd.to_datetime(events["timestamp"], errors="coerce")
+    return events
+
+
+def render_login() -> None:
+    st.markdown(
+        f"""
+<div class="app-header">
+    <h1>{APP_TITLE}</h1>
+    <p>{APP_SUBTITLE}</p>
+    <p>Identificação de usuário para controle de uso da ferramenta.</p>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    with st.form("usage_login_form"):
+        name = st.text_input("Nome")
+        identifier = st.text_input("E-mail ou matrícula")
+        area = st.text_input("Área / equipe")
+        admin_password = st.text_input("Senha de administrador (opcional)", type="password")
+        submitted = st.form_submit_button("Entrar", use_container_width=True, type="primary")
+
+    if not submitted:
+        return
+
+    if not name.strip() or not identifier.strip():
+        st.error("Informe nome e e-mail/matrícula para acessar a ferramenta.")
+        return
+
+    typed_admin_password = admin_password.strip()
+    is_admin = bool(typed_admin_password) and typed_admin_password == get_admin_password()
+    if typed_admin_password and not is_admin:
+        st.error("Senha de administrador inválida.")
+        return
+
+    st.session_state.usage_user = {
+        "name": name.strip(),
+        "identifier": identifier.strip().lower(),
+        "area": area.strip() or "Não informado",
+        "is_admin": is_admin,
+    }
+    ensure_usage_session_id()
+    append_usage_event("login", f"admin={is_admin}")
+    st.rerun()
+
+
+def require_login() -> bool:
+    if current_user():
+        return True
+    render_login()
+    return False
+
+
+def render_logged_user_sidebar() -> None:
+    user = current_user()
+    if not user:
+        return
+
+    st.sidebar.markdown("### Usuário")
+    st.sidebar.write(user["name"])
+    st.sidebar.caption(f"{user['identifier']} · {user['area']}")
+    if user.get("is_admin"):
+        st.sidebar.success("Administrador")
+
+    if st.sidebar.button("Sair", use_container_width=True):
+        append_usage_event("logout")
+        st.session_state.usage_user = None
+        st.session_state.usage_session_id = None
+        st.session_state.simulation_view_logged = False
+        st.session_state.usage_dashboard_logged = False
+        st.rerun()
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -742,7 +893,8 @@ def update_input_base(df_new: pd.DataFrame, signature: str) -> None:
         st.session_state.last_input_signature = signature
 
 
-def request_analysis(target_tab_index: int = 1) -> None:
+def request_analysis(target_tab_index: int = 1, source: str = "analysis") -> None:
+    append_usage_event("analysis_requested", source)
     st.session_state.run_analysis_requested = True
     st.session_state.pending_tab_index = target_tab_index
     st.rerun()
@@ -883,13 +1035,15 @@ def handle_excel_upload(filename: str, file_bytes: bytes) -> None:
 
     st.success(f"Arquivo carregado com sucesso. Registros encontrados: {len(df_upload)}")
     signature = f"excel::{filename}::{len(df_upload)}::{','.join(df_upload.columns)}"
+    if st.session_state.last_input_signature != signature:
+        append_usage_event("input_loaded", f"excel:{filename}:rows={len(df_upload)}")
     update_input_base(df_upload, signature)
 
     with st.expander("Pré-visualizar dados carregados"):
         st.dataframe(df_upload.head(10), use_container_width=True)
 
     if st.button("Rodar análise", key="btn_rodar_upload", use_container_width=True, type="primary"):
-        request_analysis()
+        request_analysis(source="upload_excel")
 
 
 def handle_pdf_upload(filename: str, file_bytes: bytes) -> None:
@@ -927,9 +1081,14 @@ def handle_pdf_upload(filename: str, file_bytes: bytes) -> None:
         st.dataframe(df_pdf, use_container_width=True)
 
     signature = f"pdf::{filename}::{selected_reference}::{df_pdf.iloc[0]['INSTALACAO']}"
+    if st.session_state.last_input_signature != signature:
+        append_usage_event(
+            "input_loaded",
+            f"pdf:{filename}:ref={selected_reference}:instalacao={df_pdf.iloc[0]['INSTALACAO']}",
+        )
     update_input_base(df_pdf, signature)
     if st.button("Rodar análise", key="btn_rodar_upload_pdf", use_container_width=True, type="primary"):
-        request_analysis()
+        request_analysis(source="upload_pdf")
 
 
 def reset_loaded_analysis() -> None:
@@ -1056,6 +1215,8 @@ def run_manual_analysis(editor_df: pd.DataFrame) -> None:
     st.session_state.run_analysis_requested = True
     st.session_state.last_input_signature = f"manual::{len(editor_df)}"
     st.session_state.pending_tab_index = 1
+    append_usage_event("input_loaded", f"manual:rows={len(editor_df)}")
+    append_usage_event("analysis_requested", "manual")
     st.rerun()
 
 
@@ -1132,6 +1293,10 @@ def render_simulation_tab() -> None:
     if st.session_state.df_res is None:
         st.warning("A simulação fica disponível após a conclusão da análise na aba Resultados.")
         return
+
+    if not st.session_state.simulation_view_logged:
+        append_usage_event("simulation_viewed")
+        st.session_state.simulation_view_logged = True
 
     df_res = normalize_instalacao(st.session_state.df_res)
     df = normalize_instalacao(st.session_state.df)
@@ -1397,6 +1562,84 @@ def render_simulation_metrics(result: SimulationResult) -> None:
         )
 
 
+def render_usage_dashboard() -> None:
+    if not st.session_state.usage_dashboard_logged:
+        append_usage_event("usage_dashboard_viewed")
+        st.session_state.usage_dashboard_logged = True
+
+    events = load_usage_events()
+    st.markdown('<p class="section-label">Dashboard de uso</p>', unsafe_allow_html=True)
+
+    if events.empty:
+        st.info("Ainda não há eventos de uso registrados.")
+        return
+
+    valid_timestamps = events["timestamp"].dropna()
+    unique_users = events["user_id"].replace("", pd.NA).dropna().nunique()
+    unique_sessions = events["session_id"].replace("", pd.NA).dropna().nunique()
+    last_access = "-"
+    if not valid_timestamps.empty:
+        last_access = valid_timestamps.max().strftime("%d/%m/%Y %H:%M")
+
+    col_users, col_sessions, col_events, col_last = st.columns(4)
+    col_users.metric("Usuários", unique_users)
+    col_sessions.metric("Sessões", unique_sessions)
+    col_events.metric("Eventos", len(events))
+    col_last.metric("Último acesso", last_access)
+
+    st.markdown('<p class="section-label">Uso por usuário</p>', unsafe_allow_html=True)
+    by_user = (
+        events.groupby(["user_id", "user_name", "user_area"], dropna=False)
+        .agg(
+            eventos=("event_type", "count"),
+            sessoes=("session_id", "nunique"),
+            ultimo_acesso=("timestamp", "max"),
+        )
+        .reset_index()
+    )
+    by_user["ultimo_acesso"] = by_user["ultimo_acesso"].dt.strftime("%d/%m/%Y %H:%M")
+    by_user = by_user.rename(
+        columns={
+            "user_id": "identificador",
+            "user_name": "nome",
+            "user_area": "area",
+        }
+    )
+    st.dataframe(
+        by_user.sort_values(["eventos", "sessoes"], ascending=False),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    chart_col_events, chart_col_days = st.columns(2)
+    with chart_col_events:
+        st.markdown('<p class="section-label">Eventos por tipo</p>', unsafe_allow_html=True)
+        events_by_type = events["event_type"].value_counts().rename_axis("tipo").reset_index(name="eventos")
+        st.bar_chart(events_by_type, x="tipo", y="eventos")
+
+    with chart_col_days:
+        st.markdown('<p class="section-label">Eventos por dia</p>', unsafe_allow_html=True)
+        events_by_day = events.dropna(subset=["timestamp"]).copy()
+        if events_by_day.empty:
+            st.info("Sem eventos com data válida.")
+        else:
+            events_by_day["data"] = events_by_day["timestamp"].dt.date
+            events_by_day = events_by_day.groupby("data").size().reset_index(name="eventos")
+            st.line_chart(events_by_day, x="data", y="eventos")
+
+    st.markdown('<p class="section-label">Eventos recentes</p>', unsafe_allow_html=True)
+    events_table = events.sort_values("timestamp", ascending=False).copy()
+    events_table["timestamp"] = events_table["timestamp"].dt.strftime("%d/%m/%Y %H:%M:%S")
+    st.dataframe(events_table, use_container_width=True, hide_index=True)
+    st.download_button(
+        "Baixar eventos (.csv)",
+        data=events_table.to_csv(index=False).encode("utf-8"),
+        file_name="usage_events.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+
 def click_pending_tab() -> None:
     if st.session_state.pending_tab_index is None:
         return
@@ -1431,12 +1674,20 @@ def click_pending_tab() -> None:
 def main() -> None:
     render_css()
     init_session_state()
+    if not require_login():
+        return
+
+    render_logged_user_sidebar()
     render_header()
     render_step_cards()
     render_status_cards()
 
     st.markdown('<p class="helper-text">Navegue entre as etapas pelas abas abaixo.</p>', unsafe_allow_html=True)
-    tab_input, tab_results, tab_simulation = st.tabs(["1. Entrada", "2. Resultados", "3. Simulação"])
+    tab_labels = ["1. Entrada", "2. Resultados", "3. Simulação"]
+    if current_user_is_admin():
+        tab_labels.append("4. Uso")
+    tabs = st.tabs(tab_labels)
+    tab_input, tab_results, tab_simulation = tabs[:3]
 
     with tab_input:
         render_input_tab()
@@ -1448,6 +1699,10 @@ def main() -> None:
 
     with tab_simulation:
         render_simulation_tab()
+
+    if current_user_is_admin():
+        with tabs[3]:
+            render_usage_dashboard()
 
     click_pending_tab()
 
