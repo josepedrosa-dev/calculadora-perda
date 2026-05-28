@@ -1399,7 +1399,7 @@ with tab_simulacao:
 
         perda_proj = max(0.0, perda - ganho_total)
         perda_alvo = float(red_series.iloc[0])
-        meta_ganho = max(0.0, perda - perda_alvo)
+        meta_ganho = max(0.0, perda_alvo)
         reducao_obtida = max(0.0, ganho_total)
         
         if meta_ganho == 0:
@@ -1442,12 +1442,12 @@ with tab_simulacao:
         r1, r2, r3 = st.columns(3)
         r1.metric("Ganho", f"{ganho_total:.2f}")
         r2.metric("Perda Projetada", f"{perda_proj:.2f}")
-        r3.metric("Meta", f"{meta:.2f}")
+        r3.metric("Meta", f"{meta_ganho:.2f}")
 
-        if perda_proj <= meta:
+        if reducao_obtida >= meta_ganho:
             st.markdown('<div class="sim-result-ok">Meta atingida</div>', unsafe_allow_html=True)
         else:
-            falta = perda_proj - meta
+            falta = meta_ganho - reducao_obtida
             st.markdown(
                 f'<div class="sim-result-fail">Faltam {falta:.2f} kWh para atingir a meta</div>',
                 unsafe_allow_html=True,
