@@ -1397,20 +1397,21 @@ with tab_simulacao:
             + calcular_ganho(c300, ganho_c300, "c300", "Cod 300")
         )
 
-        perda_proj = perda - ganho_total
-        reducao_necessaria = max(0.0, perda - meta)
-        reducao_obtida = max(0.0, perda - perda_proj)
-
-        if reducao_necessaria == 0:
+        perda_proj = max(0.0, perda - ganho_total)
+        perda_alvo = float(meta_series.iloc[0])
+        meta_ganho = max(0.0, perda - perda_alvo)
+        reducao_obtida = max(0.0, ganho_total)
+        
+        if meta_ganho == 0:
             atingimento = 100.0
         else:
-            atingimento = max(0.0, min(100.0, (reducao_obtida / reducao_necessaria) * 100))
+            atingimento = max(0.0, min(100.0, (reducao_obtida / meta_ganho) * 100))
 
-        if atingimento < 60:
+        if atingimento < 90:
             classe_badge = "sim-badge sim-badge-critico"
             texto_badge = "Crítico"
             cor_barra = "#ef4444"
-        elif atingimento < 90:
+        elif atingimento < 100:
             classe_badge = "sim-badge sim-badge-atencao"
             texto_badge = "Meta próxima"
             cor_barra = "#f59e0b"
