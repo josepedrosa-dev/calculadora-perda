@@ -21,6 +21,7 @@ USAGE_LOG_PATH = Path(__file__).with_name("usage_events.csv")
 USER_NAME_OPTIONS = [
     "João",
     "Marciel",
+    "Janmerson",
     "Matheus",
     "Alex",
     "Adriel",
