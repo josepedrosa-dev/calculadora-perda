@@ -901,7 +901,7 @@ def process_results(df_input: pd.DataFrame) -> pd.DataFrame:
         perda_pct_alvo = max(0.0, (perda_pct * 100 - meta_pp) / 100)
         perda_alvo_curva_kwh = perda_pct_alvo * total
 
-        red_min = perda - perda_alvo_curva_kwh
+        red_min = (perda - perda_alvo_curva_kwh)*1.3
         perda_10_kwh = 0.10 * total
         red_10 = max(0.0, perda - perda_10_kwh)
         red_total = max(red_min, red_10)
