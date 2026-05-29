@@ -94,7 +94,7 @@ class ValidationResult:
 class SimulationResult:
     perda_atual: float
     perda_projetada: float
-    : float
+    meta_ganho: float
     ganho_realizado: float
     atingimento: float
     atingimento_barra: float
