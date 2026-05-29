@@ -94,7 +94,7 @@ class ValidationResult:
 class SimulationResult:
     perda_atual: float
     perda_projetada: float
-    meta_ganho: float
+    : float
     ganho_realizado: float
     atingimento: float
     atingimento_barra: float
@@ -1569,7 +1569,7 @@ def calculate_simulation_result(current_loss: float, target_gain: float, total_g
     return SimulationResult(
         perda_atual=current_loss,
         perda_projetada=max(0.0, current_loss - total_gain),
-        meta_ganho=target_gain,
+        meta_ganho=target_gain*0.3,
         ganho_realizado=gain_done,
         atingimento=achievement,
         atingimento_barra=min(achievement, 100.0),
