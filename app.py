@@ -1377,7 +1377,7 @@ def render_simulation_tab() -> None:
 
     selected_installation = st.selectbox("Instalação", df_res["INSTALACAO"].tolist())
     base_row = get_selected_base_row(df, selected_installation)
-    target_gain = get_selected_target_gain(df_res, selected_installation)
+    target_gain = get_selected_target_gain(df_res, selected_installation)*1.3
     current_loss = calculate_loss(base_row)
     render_simulation_context(selected_installation, current_loss, target_gain)
 
