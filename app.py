@@ -55,10 +55,10 @@ NUMERIC_COLUMNS = REQUIRED_COLUMNS[1:]
 
 ACTION_DEFAULTS = {
     "inc": {"label": "Inclusões", "default_gain": 150.0},
-    "c100": {"label": "Cod 100", "default_gain": 120.0},
+    "c100": {"label": "Cod 100", "default_gain": 97.9},
     "exc": {"label": "Exclusões", "default_gain": 100.0},
-    "c200": {"label": "Cod 200", "default_gain": 100.0},
-    "c300": {"label": "Cod 300", "default_gain": 30.0},
+    "c200": {"label": "Cod 200", "default_gain": 65,7.0},
+    "c300": {"label": "Cod 300", "default_gain": 53.2},
 }
 
 LEGACY_EXPORT_COLUMNS = {
